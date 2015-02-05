@@ -1,5 +1,19 @@
 #!/usr/bin/env zsh
 
+tarcmd() {
+    if [[ "$1" -regex-match ".*\.tar.bz2" ]]; then
+        print -n j
+    elif [[ "$1" -regex-match ".*\.tar.gz" ]]; then
+        print -n z
+    elif [[ "$1" -regex-match ".*\.tar.xz" ]]; then
+        print -n J
+    else
+        print "Unknown tar archive: $1"
+        return 1
+    fi
+    return 0
+}
+
 trim() {
     sed -e 's/^[[:space:]]*//g ; s/[[:space:]]*\$//g'
 }

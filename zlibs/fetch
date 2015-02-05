@@ -4,90 +4,164 @@
 webc="elinks -no-numbering -dump -dump-width 256"
 
 
-version() {
-    pkg_ver=$1
-    rprompt
-}
-
-version-latest() {
-    # scrape web search for latest package version
-    # may need tweaking as we go by
-    print "Querying: https://packages.debian.org/search?keywords=${pkg_name}&searchon=names&suite=${release}&section=${section}"
-    ${=webc} "https://packages.debian.org/search?keywords=${pkg_name}&searchon=names&suite=${release}&section=${section}" | awk '
-
-BEGIN { found=0 }
-
-/Package '"$pkg_name"'/ { found=1 }
-
-{ if(found>0) found++
-  if(found==5) print $0 }
-
-' | trim | sysread pkg_latest_ver
-    # split to *: 
-    pkg_latest_ver=${pkg_latest_ver[(ws@:@)1]}
-
-    print "$pkg_name latest version is ${pkg_latest_ver}"
-
-    version $pkg_latest_ver
-}
-
 get-source() {
     [[ "$pkg_name" = "" ]] && {
         print "no package name set?!"
         return 1
     }
 
-    [[ "$pkg_ver" = "?" ]] && version-latest
-
     mkdir -p sources
 
+    pkg_url=https://packages.debian.org/${release}/${pkg_name}
+    web_info=`${=webc} ${pkg_url}`
+    # fetch sources
+    typeset -aU pkg_sources
+    pkg_sources=(`print $web_info | awk '
+
+BEGIN { found=0 }
+
+/Download Source Package/ { found=1; next }
+
+/Maintainer/ { exit }
+
+{ if(found==1) {
+      src=sub(/.*\*.*\[/, "", $0)
+      src=sub(/\]$/, "", $src)
+      print $src
+  }
+}
+
+'`)
+    pkg_name=${pkg_sources[1]}
+    pkg_name=${pkg_name[(ws:_:)1]}
+    print
+    print "Source package name: $pkg_name"
+    print
     # get first package letter
     alpha=${pkg_name[1]}
 
     # render url
-    pkg_url=${mirror}/pool/${section}/${alpha}/${pkg_name}/${pkg_name}_${pkg_ver}
+    source_url=${mirror}/pool/${section}/${alpha}/${pkg_name}
     
-    # fetch description
-    # print ${pkg_url}.dsc
-    pkg_dsc_file=${pkg_name}_${pkg_ver}.dsc
-    [[ -r sources/${pkg_dsc_file} ]] || {
-        curl "${pkg_url}.dsc" -o sources/${pkg_dsc_file}
-        [[ $? = 0 ]] || {
-            print "Error downloading: ${pkg_url}.dsc"
-            return 1
+    pkg_dsc_file=""
+    pkg_debian_file=""
+    pkg_orig_file=""
+    # fetch sources
+    for s in $pkg_sources; do
+        print "Source file: $s"
+        [[ -r sources/${s} ]] || {
+            curl "${source_url}/$s" -o sources/$s
+            [[ $? = 0 ]] || {
+                print "Error downloading: $s"
+                print "Url: ${source_url}/$s"
+                return 1
+            }
         }
-    }
-    
-    # fetch tar
-    # print ${pkg_url}.tar.xz
-    pkg_tar_file=${pkg_name}_${pkg_ver}.tar.xz
-    [[ -r sources/${pkg_tar_file} ]] || {
-        curl "${pkg_url}.tar.xz" -o sources/${pkg_tar_file}
-        [[ $? = 0 ]] || {
-            print "Error downloading: ${pkg_url}.tar.xz"
-            return 1
-        }
-    }
-    
-    # read in the package description
-    pkg_dsc=`cat sources/$pkg_dsc_file`
+        if [[ "$s" -regex-match ".*\.dsc$" ]]; then
+            pkg_dsc_file=$s 
+        elif [[ "$s" -regex-match ".*\.debian\..*" ]]; then
+            pkg_debian_file=$s
+        else
+            pkg_orig_file=$s
+        fi
+    done    
 
+    # calculate version from package filename
+    pkg_ver=${pkg_dsc_file[(ws:_:)2]}
+    pkg_ver=${pkg_ver[(ws:-:)1]}
+    pkg_ver=${pkg_ver%*.dsc}
+
+    # calculate destination directory from tar contents
+    t=`tarcmd ${pkg_orig_file}`
+    pkg_dest_dir=`tar tvf$t sources/$pkg_orig_file | awk '
+{ print $6; exit }
+'`
+    pkg_dest_dir=${pkg_dest_dir%*/}
+
+    print "Package version: $pkg_ver"
+    print "Package destination: $pkg_dest_dir"
+    print "Package description: $pkg_dsc_file"
+    print "Package orig source: $pkg_orig_file"
+    [[ "$pkg_debian_file" = "" ]] || \
+        print "Package deb  source: $pkg_debian_file"
     # update the prompt
     rprompt
 }
 
+
+verify() {
+
+    get-source
+
+    pkg_dsc=`cat sources/${pkg_dsc_file}`
+
+    typeset -A hash_map
+    hash_dsc_256=`print - $pkg_dsc | awk '
+BEGIN { found=0 }
+/^Checksums-Sha256:/ { found=1; next }
+/'"$pkg_name"'/ { if(found==1) print "hash_map+=(" $3 " " $1")"; next }
+{ if(found==1) exit }
+'`
+    eval $hash_dsc_256
+
+    for f in ${(k)hash_map}; do
+        print
+        print "SHA256 desc checksum: ${hash_map[$f]} ${f}"
+        hash_tar_256=`sha256sum sources/$f | awk '{print $1}'`
+        print "SHA256 file checksum: $hash_tar_256 ${f}"
+        print
+    done
+    print - $pkg_dsc | ${=gpg} --verify
+    return $?
+}
+
 unpack() {
-    [[ "$pkg_ver" = "" ]] && {
-        print "package version not known"
+
+    verify
+
+    print
+    print "Decompressing orig source file"
+    t=`tarcmd ${pkg_orig_file}`
+    tar xf$t sources/${pkg_orig_file} -C sources
+    [[ -d sources/${pkg_dest_dir} ]] || {
+        print "Error guessing package destination, not found: sources/${pkg_dest_dir}"
         return 1
     }
-    [[ -d sources/$pkg_name-$pkg_ver ]] && {
-        print "package already unpacked"
-        return 1
+    [[ "$pkg_debian_file" = "" ]] || {
+        print "Decompressing debian source file"
+        tar xfJ sources/${pkg_debian_file} -C sources/${pkg_dest_dir}/
+        [[ $? = 0 ]] || return 1
     }
 
-    tar xvfJ sources/${pkg_name}_${pkg_ver}.tar.xz -C sources
+    print
+    return $?
 }
+
+
+stage() {
+
+    unpack   
+
+    mkdir -p stage
+    [[ -d stage/$pkg_dest_dir ]] && {
+        print "Already staged: $pkg_dest_dir"
+        print "Remote: https://git.devuan.org/packages-base/${pkg_name}"
+        return 0
+    }
+    rsync -raX sources/$pkg_dest_dir stage/
+    pushd stage/$pkg_dest_dir
+    git init
+    git add . 2> /dev/null
+    git commit -m "Import from Debian package $pkg_name-$pkg_ver (Devuan SDK)" 2>/dev/null
+    git remote add origin git@git.devuan.org:packages-base/${pkg_name}
+    popd
+    print "Stage successfull: stage/$pkg_dest_dir"
+    print "Remote: https://git.devuan.org/packages-base/${pkg_name}"
+    print
+    return 0
+
+}
+
 
 gpg_fast="gpg2 --no-default-keyring --no-auto-check-trustdb --keyring $sdk_path/.gnupg/pubring.gpg --batch"
 gpg="gpg2 --no-default-keyring --keyring $sdk_path/.gnupg/pubring.gpg --batch"
@@ -118,21 +192,26 @@ init-keyring() {
     rprompt
 }
 
-verify() {
-    get-source
-    print
-    pkg_dsc=`cat sources/${pkg_name}_${pkg_ver}.dsc`
-    hash_dsc_256=`print - $pkg_dsc | awk '
+
+# Old and deprecated
+version-latest() {
+    # scrape web search for latest package version
+    # may need tweaking as we go by
+    print "Querying: https://packages.debian.org/search?keywords=${pkg_name}&searchon=names&suite=${release}&section=${section}"
+    ${=webc} "https://packages.debian.org/search?keywords=${pkg_name}&searchon=names&suite=${release}&section=${section}" | awk '
+
 BEGIN { found=0 }
-/^Checksums-Sha256:/ { found=1; next }
-/'"$pkg_name_$pkg_ver"'/ { if(found==1) print $1 }
-{ if(found==1) exit }
-'`
-    print "SHA256 desc checksum: $hash_dsc_256"
-    hash_tar_256=`sha256sum sources/${pkg_name}_${pkg_ver}.tar.xz | awk '{print $1}'`
-    print "SHA256 file checksum: $hash_tar_256"
-    print
-    print - $pkg_dsc | ${=gpg} --verify
 
+/Package '"$pkg_name"'/ { found=1 }
+
+{ if(found>0) found++
+  if(found==5) print $0 }
+
+' | trim | sysread pkg_latest_ver
+    # split to *: 
+    pkg_latest_ver=${pkg_latest_ver[(ws@:@)1]}
+
+    print "$pkg_name latest version is ${pkg_latest_ver}"
+
+    version $pkg_latest_ver
 }
-

@@ -3,6 +3,7 @@
 # reqs: elinks, curl, gnupg2
 
 zmodload zsh/system
+zmodload zsh/regex
 
 source zlibs/helpers
 source zlibs/fetch
@@ -11,8 +12,8 @@ source config
 
 # global variables
 typeset -h sdk_path
-typeset -h pkg_url pkg_ver pkg_name pkg_dsc_file pkg_tar_file
-typeset -h pkg_dsc pkg_email_arr
+typeset -h pkg_name pkg_ver pkg_dsc pkg_dest_dir
+typeset -h pkg_dsc_file pkg_orig_file pkg_debian_file
 
 # arg check
 pkg_name="$1"
@@ -30,6 +31,13 @@ pkg_ver=${2:-?}
 sdk_path=`pwd`
 rprompt
 
+TRAPZERR() { 
+    print "Error reported, canceling operation."
+    return 1
+}
+
 # where to download packages
 mkdir -p sources
 
+print
+print "Package loaded: $pkg_name"
