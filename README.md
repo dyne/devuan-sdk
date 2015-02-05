@@ -34,20 +34,10 @@ source sdk desktop-base
 ```
 
 If all goes well you will see that the name of the package is shown on
-the right prompt with a `-?` following it, because we haven't
-specified yet its version. If you just want to choose the latest do:
+the right prompt with a `-?` following it, because we don't know yet
+its latest version.
 
-```
-version-latest
-```
-
-else you can specify one manually, for instance with:
-
-```
-version 8.0.1
-```
-
-Once set you can start the download of the package with:
+Start the download of the package with:
 
 ```
 get-source
@@ -57,20 +47,38 @@ Curl will show its progress and the .dsc and .tar files will be found
 in the `sources/` subdirectory relative to the SDK.
 
 To verify the signatures of the files one needs to have the Debian
-keyring setup first. This may take some time and its done with:
+keyring setup first. This may take some time and its done only once:
 
 ```
 init-keyring
 ```
 
-Once initialized the keyring, verification of the currently selected package is simply done with:
+Once initialized the keyring, verification of the currently selected
+package is simply done with:
 
 ```
 verify
 ```
 
-And analyzing the output of the command, which will compate SHA256
+And analyzing the output of the command, which will compute SHA256
 sums and verify the .dsc signature.
+
+To unpack all the sources, automatically overlaying the
+.debian. separate source if present, do:
+
+```
+unpack
+```
+
+At last, to stage the source and import it as first git commit:
+
+```
+stage
+```
+
+Every command calls all the preceeding steps and fails on error. Hence
+calling `stage` directly as first command will call in cascade of all
+other steps: `get-sources` -> `verify` -> `unpack` -> `stage`.
 
 # Caveat
 
