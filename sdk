@@ -11,15 +11,25 @@ source zlibs/fetch
 source config
 
 # global variables
-typeset -h sdk_path
+typeset -h sdk_path cmd_name source_url
 typeset -h pkg_name pkg_ver pkg_dsc pkg_dest_dir
 typeset -h pkg_dsc_file pkg_orig_file pkg_debian_file
+typeset -A hash_map
 
 # arg check
-pkg_name="$1"
-[[ "$pkg_name" = "" ]] && {
+cmd_name="$1"
+[[ "$cmd_name" = "" ]] && {
     print "usage: source sdk package-name [version]"
     return 1
+}
+
+# we assume source sdk is always run from the source dir
+sdk_path=`pwd`
+
+[[ "$cmd_name" = "init" ]] && {
+    # initialization
+    init-repos
+    return $?
 }
 
 pkg_ver=${2:-?}
@@ -27,8 +37,6 @@ pkg_ver=${2:-?}
 # web client command
 
 
-# we assume source sdk is always run from the source dir
-sdk_path=`pwd`
 rprompt
 
 TRAPZERR() { 
@@ -40,4 +48,6 @@ TRAPZERR() {
 mkdir -p sources
 
 print
-print "Package loaded: $pkg_name"
+print "Package loaded: $cmd_name"
+print
+

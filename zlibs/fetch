@@ -5,14 +5,14 @@ webc="elinks -no-numbering -dump -dump-width 256"
 
 
 get-source() {
-    [[ "$pkg_name" = "" ]] && {
+    [[ "$cmd_name" = "" ]] && {
         print "no package name set?!"
         return 1
     }
 
     mkdir -p sources
 
-    pkg_url=https://packages.debian.org/${release}/${pkg_name}
+    pkg_url=https://packages.debian.org/${release}/${cmd_name}
     web_info=`${=webc} ${pkg_url}`
     # fetch sources
     typeset -aU pkg_sources
@@ -88,6 +88,9 @@ BEGIN { found=0 }
     rprompt
 }
 
+gpg_fast="gpg2 --no-default-keyring --no-auto-check-trustdb --keyring $sdk_path/.gnupg/pubring.gpg --batch"
+gpg="gpg2 --no-default-keyring --keyring $sdk_path/.gnupg/pubring.gpg --batch"
+
 
 verify() {
 
@@ -95,14 +98,14 @@ verify() {
 
     pkg_dsc=`cat sources/${pkg_dsc_file}`
 
-    typeset -A hash_map
+    hash_map=()
     hash_dsc_256=`print - $pkg_dsc | awk '
 BEGIN { found=0 }
 /^Checksums-Sha256:/ { found=1; next }
 /'"$pkg_name"'/ { if(found==1) print "hash_map+=(" $3 " " $1")"; next }
 { if(found==1) exit }
 '`
-    eval $hash_dsc_256
+    eval $hash_dsc_256 # fills hash_map
 
     for f in ${(k)hash_map}; do
         print
@@ -143,28 +146,92 @@ stage() {
     unpack   
 
     mkdir -p stage
-    [[ -d stage/$pkg_dest_dir ]] && {
-        print "Already staged: $pkg_dest_dir"
+    [[ -d $sdk_path/stage/$pkg_name ]] && {
+        staged_pkg_ver="no stamp"
+        [[ -r $sdk_path/stage/$pkg_name/.devuan ]] && {
+            staged_pkg_ver=`awk '/source_ver/ {print $2}' $sdk_path/stage/$pkg_name/.devuan`
+        }
+        print "Already staged: $pkg_name ($staged_pkg_ver)"
         print "Remote: https://git.devuan.org/packages-base/${pkg_name}"
+
+        [[ "$staged_pkg_ver" = "$pkg_ver" ]] || {
+            print "Creating branch for version: $pkg_ver"
+            pushd $sdk_path/stage/$pkg_name
+            git checkout -b v${pkg_ver}
+            rsync -raX $sdk_path/sources/$pkg_dest_dir/* \
+                $sdk_path/stage/$pkg_name/
+            git add .
+            git commit -m "branched new version $pkg_ver"
+            popd
+
+            stamp
+        }
         return 0
     }
-    rsync -raX sources/$pkg_dest_dir stage/
-    pushd stage/$pkg_dest_dir
+
+    rsync -raX $sdk_path/sources/$pkg_dest_dir \
+        $sdk_path/stage/$pkg_name
+    pushd $sdk_path/stage/$pkg_name
     git init
-    git add . 2> /dev/null
-    git commit -m "Import from Debian package $pkg_name-$pkg_ver (Devuan SDK)" 2>/dev/null
+    git add .
+    git commit -m "Import from Debian package $pkg_name-$pkg_ver (Devuan SDK)"
     git remote add origin git@git.devuan.org:packages-base/${pkg_name}
     popd
-    print "Stage successfull: stage/$pkg_dest_dir"
+    print "Stage successfull: stage/$pkg_name"
     print "Remote: https://git.devuan.org/packages-base/${pkg_name}"
     print
+
+    stamp
+
     return 0
 
 }
 
+stamp() {
 
-gpg_fast="gpg2 --no-default-keyring --no-auto-check-trustdb --keyring $sdk_path/.gnupg/pubring.gpg --batch"
-gpg="gpg2 --no-default-keyring --keyring $sdk_path/.gnupg/pubring.gpg --batch"
+    [[ -d $sdk_path/stage/$pkg_name ]] || {
+        print "Cannot stamp project, not staged yet"
+        return 1
+    }
+
+    dst=$sdk_path/stage/$pkg_name/.devuan
+
+    cat <<EOF > $dst
+package_name: $cmd_name
+source_name: $pkg_name
+source_ver: $pkg_ver
+source_dir: $pkg_dest_dir
+source_dsc: $pkg_dsc_file
+source_orig: $pkg_orig_file
+source_debian: $pkg_debian_file
+source_url: $source_url
+begin: hash sha256
+EOF
+    for k in ${(k)hash_map}; do
+        print "${hash_map[$k]} $k" >> $dst
+    done
+    cat <<EOF >> $dst
+end: hash sha256
+EOF
+    pushd $sdk_path/stage/$pkg_name
+    git add .devuan
+    git commit -m "import stamp version $pkg_ver"    
+    popd
+}
+
+init-repos() {
+    url="https://git.devuan.org/groups"
+    git="git@git.devuan.org:packages-base"
+    repos=`curl https://git.devuan.org/groups/packages-base | awk '/a class=.*project/ { print $3}' | cut -d'"' -f2`
+    pushd $sdk_path/stage
+    for i in ${(f)repos}; do
+        base=`basename $i`
+        [[ -d $base ]] || {
+            git clone ${git}/${base}.git
+        }
+    done
+}
+
 init-keyring() {
     _pkg_name=$pkg_name
     _pkg_ver=$pkg_ver
