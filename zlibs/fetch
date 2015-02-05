@@ -1,0 +1,138 @@
+#!/usr/bin/env zsh
+
+# web client command
+webc="elinks -no-numbering -dump -dump-width 256"
+
+
+version() {
+    pkg_ver=$1
+    rprompt
+}
+
+version-latest() {
+    # scrape web search for latest package version
+    # may need tweaking as we go by
+    print "Querying: https://packages.debian.org/search?keywords=${pkg_name}&searchon=names&suite=${release}&section=${section}"
+    ${=webc} "https://packages.debian.org/search?keywords=${pkg_name}&searchon=names&suite=${release}&section=${section}" | awk '
+
+BEGIN { found=0 }
+
+/Package '"$pkg_name"'/ { found=1 }
+
+{ if(found>0) found++
+  if(found==5) print $0 }
+
+' | trim | sysread pkg_latest_ver
+    # split to *: 
+    pkg_latest_ver=${pkg_latest_ver[(ws@:@)1]}
+
+    print "$pkg_name latest version is ${pkg_latest_ver}"
+
+    version $pkg_latest_ver
+}
+
+get-source() {
+    [[ "$pkg_name" = "" ]] && {
+        print "no package name set?!"
+        return 1
+    }
+
+    [[ "$pkg_ver" = "?" ]] && version-latest
+
+    mkdir -p sources
+
+    # get first package letter
+    alpha=${pkg_name[1]}
+
+    # render url
+    pkg_url=${mirror}/pool/${section}/${alpha}/${pkg_name}/${pkg_name}_${pkg_ver}
+    
+    # fetch description
+    # print ${pkg_url}.dsc
+    pkg_dsc_file=${pkg_name}_${pkg_ver}.dsc
+    [[ -r sources/${pkg_dsc_file} ]] || {
+        curl "${pkg_url}.dsc" -o sources/${pkg_dsc_file}
+        [[ $? = 0 ]] || {
+            print "Error downloading: ${pkg_url}.dsc"
+            return 1
+        }
+    }
+    
+    # fetch tar
+    # print ${pkg_url}.tar.xz
+    pkg_tar_file=${pkg_name}_${pkg_ver}.tar.xz
+    [[ -r sources/${pkg_tar_file} ]] || {
+        curl "${pkg_url}.tar.xz" -o sources/${pkg_tar_file}
+        [[ $? = 0 ]] || {
+            print "Error downloading: ${pkg_url}.tar.xz"
+            return 1
+        }
+    }
+    
+    # read in the package description
+    pkg_dsc=`cat sources/$pkg_dsc_file`
+
+    # update the prompt
+    rprompt
+}
+
+unpack() {
+    [[ "$pkg_ver" = "" ]] && {
+        print "package version not known"
+        return 1
+    }
+    [[ -d sources/$pkg_name-$pkg_ver ]] && {
+        print "package already unpacked"
+        return 1
+    }
+
+    tar xvfJ sources/${pkg_name}_${pkg_ver}.tar.xz -C sources
+}
+
+gpg_fast="gpg2 --no-default-keyring --no-auto-check-trustdb --keyring $sdk_path/.gnupg/pubring.gpg --batch"
+gpg="gpg2 --no-default-keyring --keyring $sdk_path/.gnupg/pubring.gpg --batch"
+init-keyring() {
+    _pkg_name=$pkg_name
+    _pkg_ver=$pkg_ver
+
+    pkg_name=debian-keyring
+    get_latest
+    
+    unpack
+
+    mkdir -p $sdk_path/.gnupg
+
+    keys=`find sources/debian-keyring-${pkg_ver}/debian-maintainers-gpg -type f`
+    for i in ${(f)keys}; do
+        cat $i | ${=gpg_fast} --import
+    done
+
+    keys=`find sources/debian-keyring-${pkg_ver}/debian-keyring-gpg -type f`
+    for i in ${(f)keys}; do
+        cat $i | ${=gpg_fast} --import
+    done
+
+    print "GnuPG debian maintainers keyring succesfully imported"
+    pkg_name=$_pkg_name
+    pkg_ver=$_pkg_ver
+    rprompt
+}
+
+verify() {
+    get-source
+    print
+    pkg_dsc=`cat sources/${pkg_name}_${pkg_ver}.dsc`
+    hash_dsc_256=`print - $pkg_dsc | awk '
+BEGIN { found=0 }
+/^Checksums-Sha256:/ { found=1; next }
+/'"$pkg_name_$pkg_ver"'/ { if(found==1) print $1 }
+{ if(found==1) exit }
+'`
+    print "SHA256 desc checksum: $hash_dsc_256"
+    hash_tar_256=`sha256sum sources/${pkg_name}_${pkg_ver}.tar.xz | awk '{print $1}'`
+    print "SHA256 file checksum: $hash_tar_256"
+    print
+    print - $pkg_dsc | ${=gpg} --verify
+
+}
+

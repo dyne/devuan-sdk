@@ -1,0 +1,35 @@
+#!/usr/bin/env zsh
+
+# reqs: elinks, curl, gnupg2
+
+zmodload zsh/system
+
+source zlibs/helpers
+source zlibs/fetch
+
+source config
+
+# global variables
+typeset -h sdk_path
+typeset -h pkg_url pkg_ver pkg_name pkg_dsc_file pkg_tar_file
+typeset -h pkg_dsc pkg_email_arr
+
+# arg check
+pkg_name="$1"
+[[ "$pkg_name" = "" ]] && {
+    print "usage: source sdk package-name [version]"
+    return 1
+}
+
+pkg_ver=${2:-?}
+
+# web client command
+
+
+# we assume source sdk is always run from the source dir
+sdk_path=`pwd`
+rprompt
+
+# where to download packages
+mkdir -p sources
+

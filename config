@@ -1,0 +1,9 @@
+#!/usr/bin/env zsh
+
+# Devuan SDK configuration
+# syntax: variable=value
+# (no spaces before and after the equal sign)
+
+mirror=http://ftp.de.debian.org/debian
+release=jessie
+section=main

@@ -1,0 +1,4 @@
+# 5 February 2015
+	First public release
+	Functionality limited to download and verification of packages.
+	No checking if the package name exists.
