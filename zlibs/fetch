@@ -140,6 +140,8 @@ unpack() {
     return $?
 }
 
+# wrapper to include local gitconfig    
+    
 
 stage() {
 
@@ -168,13 +170,13 @@ stage() {
         }
         return 0
     }
-
-    rsync -raX $sdk_path/sources/$pkg_dest_dir \
-        $sdk_path/stage/$pkg_name
+    mkdir -p $sdk_path/stage/$pkg_name
+    rsync -raX $sdk_path/sources/$pkg_dest_dir/* \
+        $sdk_path/stage/$pkg_name/
     pushd $sdk_path/stage/$pkg_name
     git init
     git add .
-    git commit -m "Import from Debian package $pkg_name-$pkg_ver (Devuan SDK)"
+    git commit -m "Import from Debian $release/$section package $pkg_name-$pkg_ver"
     git remote add origin git@git.devuan.org:packages-base/${pkg_name}
     popd
     print "Stage successfull: stage/$pkg_name"

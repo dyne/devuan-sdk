@@ -2,7 +2,7 @@
 
 ## Simple (package) development kit
 
-### version 0.1
+### version 0.2
 
 This set of scripts aid package maintainers to import sources from
 Debian, verify signatures and stage them to be imported inside
@@ -13,7 +13,31 @@ Devuan's git repository.
 Tested on Debian and Ubuntu, this SDK requires to have Zsh installed,
 plus elinks, gnupg2 and curl.
 
-# Usage
+# Quick start
+
+Using Debian or Ubuntu, install `zsh` `elinks` `gnupg2`.
+
+Then clone the SDK repository:
+
+```
+git clone https://git.devuan.org/devuan/devuan-sdk.git
+```
+
+Step inside the sdk and initialize it: this will take a while to
+download Debian's keyring and import it, then clone all Devuan
+repositories.
+
+```
+cd devuan-sdk
+source sdk init
+```
+
+Now go into the `stage` directory, all the Devuan repositories will be
+there. Change what is needed and once you are sure commit and push
+(you need write permissions) or `format-patch`. Continuous integration
+should be picking up from what is pushed in master.
+
+# Complete instructions
 
 This SDK initializes the currently running shell with a set of tools
 to manipulate packages. It works as a shell extension.
@@ -23,8 +47,8 @@ quick and comfortable configuration. Eventually, you may want to help
 figuring out why Debian developers think is a good idea to write from
 scratch a new shell called Dash.
 
-Well, nevermind. Unpack and enter the SDK directory. Have a look at
-the `config` file, which mostly works with its defaults.
+Nevermind. Unpack and enter the SDK directory. Have a look at the
+`config` file, which mostly works with its defaults.
 
 To import the source packages we already have in devuan, make sure you
 have a gitlab account and then do:
@@ -39,7 +63,11 @@ keyring to verify the imported packages, which may require some time
 the first time: please keep patient and make a tea.
 
 Once done, think of a name of a Debian package to work on, for
-instance `desktop-base`, then from inside devuan-sdk/ do:
+instance imagine we want to check the latest `desktop-base` package in
+Debian and import it, or import the new version as a branch in the
+current one already in Devuan.
+
+From inside devuan-sdk/ do:
 
 ```
 source sdk desktop-base
@@ -89,10 +117,6 @@ other steps: `get-sources` -> `verify` -> `unpack` -> `stage`.
 
 This is an early release with limited functionality to facilitate the
 import of some packages.
-
-More functionalities will be added soon, to stage the packages for
-Devuan and upload them, eventually to handle ChangeLogs and to compare
-version between Debian and Devuan.
 
 This SDK is designed to be used interactively from a terminal as well
 from shell scripts.
