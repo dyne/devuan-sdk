@@ -29,13 +29,11 @@ sdk_path=`pwd`
 [[ "$cmd_name" = "init" ]] && {
     # initialization
     init-repos
+    init-keyring
     return $?
 }
 
-pkg_ver=${2:-?}
-
-# web client command
-
+pkg_name=${cmd_name}
 
 rprompt
 

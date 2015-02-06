@@ -4,7 +4,7 @@
 webc="elinks -no-numbering -dump -dump-width 256"
 
 
-get-source() {
+import() {
     [[ "$cmd_name" = "" ]] && {
         print "no package name set?!"
         return 1
@@ -94,7 +94,7 @@ gpg="gpg2 --no-default-keyring --keyring $sdk_path/.gnupg/pubring.gpg --batch"
 
 verify() {
 
-    get-source
+    import
 
     pkg_dsc=`cat sources/${pkg_dsc_file}`
 
@@ -222,7 +222,8 @@ EOF
 init-repos() {
     url="https://git.devuan.org/groups"
     git="git@git.devuan.org:packages-base"
-    repos=`curl https://git.devuan.org/groups/packages-base | awk '/a class=.*project/ { print $3}' | cut -d'"' -f2`
+    print "Updating list of Devuan packages"
+    repos=`curl -s https://git.devuan.org/groups/packages-base | awk '/a class=.*project/ { print $3}' | cut -d'"' -f2`
     pushd $sdk_path/stage
     for i in ${(f)repos}; do
         base=`basename $i`
@@ -230,18 +231,23 @@ init-repos() {
             git clone ${git}/${base}.git
         }
     done
+    popd
 }
 
 init-keyring() {
-    _pkg_name=$pkg_name
-    _pkg_ver=$pkg_ver
+    [[ -r $sdk_path/.gnupg/pubring.gpg ]] && {
+        print "Public keyring found."
+        return 0
+    }
 
-    pkg_name=debian-keyring
-    get_latest
+    _cmd_name=$cmd_name
+
+    cmd_name=debian-keyring
     
     unpack
 
     mkdir -p $sdk_path/.gnupg
+
 
     keys=`find sources/debian-keyring-${pkg_ver}/debian-maintainers-gpg -type f`
     for i in ${(f)keys}; do

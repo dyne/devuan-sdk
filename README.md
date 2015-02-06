@@ -26,8 +26,20 @@ scratch a new shell called Dash.
 Well, nevermind. Unpack and enter the SDK directory. Have a look at
 the `config` file, which mostly works with its defaults.
 
-Think of a name of a Debian package to work on, for instance
-`desktop-base`, then from inside devuan-sdk/ do:
+To import the source packages we already have in devuan, make sure you
+have a gitlab account and then do:
+
+```
+source sdk init
+```
+
+This will update the list of Devuan packages on the stage, cloning
+those that are missing. It will also download and import the debian
+keyring to verify the imported packages, which may require some time
+the first time: please keep patient and make a tea.
+
+Once done, think of a name of a Debian package to work on, for
+instance `desktop-base`, then from inside devuan-sdk/ do:
 
 ```
 source sdk desktop-base
@@ -40,21 +52,14 @@ its latest version.
 Start the download of the package with:
 
 ```
-get-source
+import
 ```
 
 Curl will show its progress and the .dsc and .tar files will be found
 in the `sources/` subdirectory relative to the SDK.
 
-To verify the signatures of the files one needs to have the Debian
-keyring setup first. This may take some time and its done only once:
-
-```
-init-keyring
-```
-
-Once initialized the keyring, verification of the currently selected
-package is simply done with:
+Once initialized the keyring, cryptographic verification of the
+currently selected package is simply done with:
 
 ```
 verify
