@@ -1,0 +1,101 @@
+#!/usr/bin/env zsh
+
+# Devuan SDK - chroot management
+
+# Copyright (C) 2015 Dyne.org Foundation
+#
+# Devuan SDK is designed, written and maintained by Denis Roio <jaromil@dyne.org>
+#
+# This source code is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This source code is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  Please refer
+# to the GNU Public License for more details.
+#
+# You should have received a copy of the GNU Public License along with
+# this source code; if not, write to: Free Software Foundation, Inc.,
+# 675 Mass Ave, Cambridge, MA 02139, USA.
+
+chroot-config() {
+    [[ "$1" = "" ]] && {
+        print "Need an argument: chroot architecture"
+        return 1
+    }
+    chroot_arch="$1"
+
+    [[ -r /etc/schroot/chroot.d/devuan-$chroot_arch ]] && {
+        print "Chroot configuration already existing: /etc/schroot/chroot.d/devuan-$chroot_arch"
+        return 0
+    }
+
+    mkdir -p $sdk_path/build/$chroot_arch
+
+    tmp=`mktemp`
+    chmod a+r $tmp
+    cat <<EOF >> $tmp
+[devuan-$chroot_arch]
+type=directory
+directory=$sdk_path/build/$chroot_arch
+description=Devuan SDK $chroot_arch
+users=$USER
+root-users=$USER
+aliases=$release
+EOF
+
+    sudo zsh $sdk_path/zlibs/sudo \
+        cp $tmp /etc/schroot/chroot.d/devuan-$chroot_arch
+    res=$?
+
+    rm $tmp
+
+    return $res
+}
+
+chroot-create() {
+
+    chroot-config $1
+
+    [[ -r $sdk_path/build/$chroot_arch/usr/bin/zsh ]] && {
+        print "Chroot already existing: $sdk_path/build/$chroot_arch"
+        return 0
+    }
+
+    print
+    print "First stage debootstrap"
+    print
+
+    sudo zsh $sdk_path/zlibs/sudo \
+        debootstrap --components=main \
+        --variant=buildd \
+        --verbose \
+        --foreign --arch $chroot_arch \
+        --include=bzip2,zsh,sysvinit \
+        --exclude=systemd,systemd-sysv,libsystemd0 \
+        --no-check-gpg \
+        $release $sdk_path/build/$chroot_arch $mirror
+
+
+    print
+    print "Second stage debootstrap"
+    print
+
+    schroot -c devuan-$chroot_arch -u root \
+        -d /debootstrap -- ./debootstrap --second-stage
+
+}
+
+chroot-enter() {
+    [[ "$1" = "" ]] && {
+        print "Specify which chroot to enter:"
+        schroot -l | awk -F: '/devuan/ {print $2}'
+        return 0
+    }
+
+    schroot -c devuan-$1 -u root -d /root -s /usr/bin/zsh
+    return $?
+}
+
