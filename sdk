@@ -1,39 +1,57 @@
 #!/usr/bin/env zsh
 
-# reqs: elinks, curl, gnupg2
+# Devuan SDK
+
+# Copyright (C) 2015 Dyne.org Foundation
+#
+# Devuan SDK is designed, written and maintained by Denis Roio <jaromil@dyne.org>
+#
+# This source code is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This source code is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  Please refer
+# to the GNU Public License for more details.
+#
+# You should have received a copy of the GNU Public License along with
+# this source code; if not, write to: Free Software Foundation, Inc.,
+# 675 Mass Ave, Cambridge, MA 02139, USA.
+
+# reqs: elinks, curl, gnupg2, sudo, schroot, debootstrap
 
 zmodload zsh/system
 zmodload zsh/regex
 
 source zlibs/helpers
 source zlibs/fetch
+source zlibs/chroot
 
 source config
 
 # global variables
-typeset -h sdk_path cmd_name source_url
+typeset -h sdk_path cmd_name
+
+# package import variables
+typeset -h source_url
 typeset -h pkg_name pkg_ver pkg_dsc pkg_dest_dir
 typeset -h pkg_dsc_file pkg_orig_file pkg_debian_file
 typeset -A hash_map
 
-# arg check
-cmd_name="$1"
-[[ "$cmd_name" = "" ]] && {
-    print "usage: source sdk package-name [version]"
-    return 1
-}
+# build chroot variables
+typeset -h chroot_arch
 
 # we assume source sdk is always run from the source dir
 sdk_path=`pwd`
 
-[[ "$cmd_name" = "init" ]] && {
+[[ "$1" = "init" ]] && {
     # initialization
     init-repos
     init-keyring
     return $?
 }
-
-pkg_name=${cmd_name}
 
 rprompt
 
@@ -42,10 +60,12 @@ TRAPZERR() {
     return 1
 }
 
-# where to download packages
-mkdir -p sources
+[[ $sdk_loaded = 1 ]] || {
+    print "Devuan SDK loaded"
+    typeset -h sdk_loaded
+    sdk_loaded=1
+}
 
-print
-print "Package loaded: $cmd_name"
-print
+sdk_loaded=1
 
+return 0
