@@ -33,13 +33,10 @@ chroot() {
         chroot_arch="$1"
     fi
     
-    RPROMPT=$chroot_arch
-
     mkdir -p chroot
 
-    print
-    print "Chroot selected: $chroot_arch"
-    print
+    notice "Chroot selected: $chroot_arch"
+
 }
 
 chroot-config() {
@@ -47,7 +44,7 @@ chroot-config() {
     chroot $@
 
     [[ -r /etc/schroot/chroot.d/devuan-$chroot_arch ]] && {
-        print "Chroot configuration already existing: /etc/schroot/chroot.d/devuan-$chroot_arch"
+        warn "Chroot configuration already existing: /etc/schroot/chroot.d/devuan-$chroot_arch"
         return 0
     }
 
@@ -79,13 +76,11 @@ chroot-create() {
     chroot-config $@
 
     [[ -r $sdk_path/chroot/$chroot_arch/usr/bin/zsh ]] && {
-        print "Chroot already existing: $sdk_path/chroot/$chroot_arch"
+        warn "Chroot already existing: $sdk_path/chroot/$chroot_arch"
         return 0
     }
 
-    print
-    print "First stage debootstrap"
-    print
+    notice "First stage debootstrap"
 
     sudo zsh $sdk_path/zlibs/sudo \
         debootstrap --components=main \
@@ -98,14 +93,12 @@ chroot-create() {
         $release $sdk_path/chroot/$chroot_arch $mirror
 
 
-    print
-    print "Second stage debootstrap"
-    print
+    notice "Second stage debootstrap"
 
     schroot -c devuan-$chroot_arch -u root \
         -d /debootstrap -- ./debootstrap --second-stage
 
-    print "Adding apt sources"
+    act "Adding apt sources"
 
     schroot -c devuan-$chroot_arch -u root \
         cat <<EOF  >> $sdk_path/chroot/$chroot_arch/etc/apt/sources.list
@@ -121,7 +114,7 @@ EOF
 
 chroot-enter() {
     [[ "$1" = "" ]] && {
-        print "Specify which chroot to enter:"
+        notice "Specify which chroot to enter:"
         schroot -l | awk -F: '/devuan/ { print $2 }'
         return 0
     }
@@ -129,7 +122,7 @@ chroot-enter() {
     if [[ -r $sdk_path/chroot/$chroot_arch/usr/bin/zsh ]]; then
         chroot_shell=/usr/bin/zsh
     else
-        print "Zsh not found in chroot $chroot_arch"
+        warn "Zsh not found in chroot $chroot_arch"
         chroot_shell=/bin/bash
     fi
         

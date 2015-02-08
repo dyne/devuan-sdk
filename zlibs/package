@@ -33,7 +33,7 @@ package() {
 
     if [[ "$1" = "" ]]; then
         [[ "$pkg_name" = "" ]] && {
-            print "Missing arguments: package-name [version]"
+            warn "Missing arguments: package-name [version]"
             return 1
         }
     else
@@ -42,13 +42,10 @@ package() {
     fi
 
 
-    RPROMPT=$pkg_name:$pkg_ver
-
     mkdir -p sources
     
-    print
-    print "Package loaded: $pkg_name"
-    print
+    notice "Importing package: $pkg_name"
+
 }
 
 
@@ -80,9 +77,9 @@ BEGIN { found=0 }
 '`)
     pkg_name=${pkg_sources[1]}
     pkg_name=${pkg_name[(ws:_:)1]}
-    print
-    print "Source package name: $pkg_name"
-    print
+
+    act "Source package name: $pkg_name"
+
     # get first package letter
     alpha=${pkg_name[1]}
 
@@ -94,12 +91,12 @@ BEGIN { found=0 }
     pkg_orig_file=""
     # fetch sources
     for s in $pkg_sources; do
-        print "Source file: $s"
+        act "Source file: $s"
         [[ -r sources/${s} ]] || {
             curl "${source_url}/$s" -o sources/$s
             [[ $? = 0 ]] || {
-                print "Error downloading: $s"
-                print "Url: ${source_url}/$s"
+                warn "Error downloading: $s"
+                warn "Url: ${source_url}/$s"
                 return 1
             }
         }
@@ -124,14 +121,12 @@ BEGIN { found=0 }
 '`
     pkg_dest_dir=${pkg_dest_dir%*/}
 
-    print "Package version: $pkg_ver"
-    print "Package destination: $pkg_dest_dir"
-    print "Package description: $pkg_dsc_file"
-    print "Package orig source: $pkg_orig_file"
+    notice "Package version: $pkg_ver"
+    act "Package destination: $pkg_dest_dir"
+    act "Package description: $pkg_dsc_file"
+    act "Package orig source: $pkg_orig_file"
     [[ "$pkg_debian_file" = "" ]] || \
-        print "Package deb  source: $pkg_debian_file"
-    # update the prompt
-    rprompt
+        act "Package deb  source: $pkg_debian_file"
 }
 
 
@@ -152,7 +147,7 @@ BEGIN { found=0 }
     eval $hash_dsc_256 # fills hash_map
 
     for f in ${(k)hash_map}; do
-        print
+        act "Compare SHA256 checksums"
         print "SHA256 desc checksum: ${hash_map[$f]} ${f}"
         hash_tar_256=`sha256sum sources/$f | awk '{print $1}'`
         print "SHA256 file checksum: $hash_tar_256 ${f}"
@@ -166,21 +161,19 @@ package-unpack() {
 
     package-verify
 
-    print
-    print "Decompressing orig source file"
+    act "Decompressing orig source file"
     t=`tarcmd ${pkg_orig_file}`
     tar xf$t sources/${pkg_orig_file} -C sources
     [[ -d sources/${pkg_dest_dir} ]] || {
-        print "Error guessing package destination, not found: sources/${pkg_dest_dir}"
+        warn "Error guessing package destination, not found: sources/${pkg_dest_dir}"
         return 1
     }
     [[ "$pkg_debian_file" = "" ]] || {
-        print "Decompressing debian source file"
+        act "Decompressing debian source file"
         tar xfJ sources/${pkg_debian_file} -C sources/${pkg_dest_dir}/
         [[ $? = 0 ]] || return 1
     }
 
-    print
     return $?
 }
 
@@ -197,11 +190,11 @@ package-stage() {
         [[ -r $sdk_path/stage/$pkg_name/.devuan ]] && {
             staged_pkg_ver=`awk '/source_ver/ {print $2}' $sdk_path/stage/$pkg_name/.devuan`
         }
-        print "Already staged: $pkg_name ($staged_pkg_ver)"
-        print "Remote: https://git.devuan.org/packages-base/${pkg_name}"
+        notice "Already staged: $pkg_name ($staged_pkg_ver)"
+        act "Remote: https://git.devuan.org/packages-base/${pkg_name}"
 
         [[ "$staged_pkg_ver" = "$pkg_ver" ]] || {
-            print "Creating branch for version: $pkg_ver"
+            notice "Creating branch for version: $pkg_ver"
             pushd $sdk_path/stage/$pkg_name
             git checkout -b v${pkg_ver}
             rsync -raX $sdk_path/sources/$pkg_dest_dir/* \
@@ -223,9 +216,9 @@ package-stage() {
     git commit -m "Import from Debian $release/$section package $pkg_name-$pkg_ver"
     git remote add origin git@git.devuan.org:packages-base/${pkg_name}
     popd
-    print "Stage successfull: stage/$pkg_name"
-    print "Remote: https://git.devuan.org/packages-base/${pkg_name}"
-    print
+    notice "Stage successfull: stage/$pkg_name"
+    act "Remote: https://git.devuan.org/packages-base/${pkg_name}"
+
 
     stamp
 
@@ -238,7 +231,7 @@ package-stamp() {
     package $@
 
     [[ -d $sdk_path/stage/$pkg_name ]] || {
-        print "Cannot stamp project, not staged yet"
+        warn "Cannot stamp project, not staged yet"
         return 1
     }
 

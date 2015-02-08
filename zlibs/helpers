@@ -37,7 +37,3 @@ isemail() {
     
     return 1
 }
-
-rprompt() {
-    RPROMPT="${pkg_name}:${pkg_ver}"
-}

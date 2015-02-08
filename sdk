@@ -32,38 +32,57 @@ source zlibs/chroot
 source zlibs/build
 source zlibs/messaging
 
+typeset -aU vars
+typeset -aU arrs
+vars=()
+arrs=()
+
 # config variables
-typeset -h mirror release section
-typeset -h chroot_include chroot_exclude
-source config
+vars+=(mirror release section)
+vars+=(chroot_include chroot_exclude)
 
 # global variables
-typeset -h sdk_path sdk_loaded
+vars+=(sdk_path)
+typeset -h sdk_loaded
 typeset -a cmd_line
 
 # package import variables
-typeset -h source_url
-typeset -h pkg_name pkg_ver pkg_dsc pkg_dest_dir
-typeset -h pkg_dsc_file pkg_orig_file pkg_debian_file
+vars+=(source_url)
+vars+=(pkg_name pkg_ver pkg_dsc pkg_dest_dir)
+vars+=(pkg_dsc_file pkg_orig_file pkg_debian_file)
 typeset -A hash_map
 
 # chroot variables
-typeset -h chroot_arch chroot_shell
+vars+=(chroot_arch chroot_shell)
 
 # build variables
-typeset -h repo_name repo_ver repo_deps
+vars+=(repo_name repo_ver repo_deps)
+
+# initialize globals
+for v in $vars; do
+    typeset -h $v
+done
+
+source config
 
 # we assume source sdk is always run from the source dir
 sdk_path=`pwd`
 
+status() {
+    act "Devuan SDK status dump:"
+    for v in $vars; do
+        print "$v \t ${(P)v}"
+    done
+}
 
+TRAPDEBUG() {
+    RPROMPT="${pkg_name:-$repo_name}:${pkg_ver:-$repo_ver}:${chroot_arch}"
+}
 TRAPZERR() { 
-    print "Error reported, operation aborted."
-    export RPROMPT=""
+    error "Error reported, operation aborted."
     return 1
 }
 
-vars=(sdk_path mirror)
 
 if [[ $sdk_loaded = 1 ]]; then
     act "Devuan SDK reloaded"

@@ -70,5 +70,5 @@ init-keyring() {
     print "GnuPG debian maintainers keyring succesfully imported"
     pkg_name=$_pkg_name
     pkg_ver=$_pkg_ver
-    rprompt
+
 }

@@ -42,17 +42,13 @@ build() {
     fi
     
     [[ -d $sdk_path/stage/$repo_name ]] || {
-        print "Repository not found: $sdk_path/stage/$repo_name"
+        warn "Repository not found: $sdk_path/stage/$repo_name"
         return 1
     }
     repo_ver=`cat $sdk_path/stage/$repo_name/.devuan | awk '
 /source_ver:/ { print $2 }'`
     
-    export RPROMPT=$repo_name:$repo_ver:$chroot_arch
-
-    print
-    print "Building repository: $repo_name"
-    print
+    notice "Building repository: $repo_name"
 
 }
 
@@ -72,8 +68,8 @@ BEGIN { found=0 }
 { found=0 }
 ' $sdk_path/stage/$repo_name/debian/control | \
  sed -e 's/([^()]*)//g' -e 's/\[[^()]*\]//g'`)
-    print "${#repo_deps} dependencies found"
-    print "$repo_deps"
+    act "${#repo_deps} dependencies found"
+    act "$repo_deps"
 
     schroot -c devuan-$chroot_arch -u root -d /usr/src -s /usr/bin/zsh \
         -- apt-get -y install ${=repo_deps}
@@ -85,19 +81,19 @@ build-sync() {
 
     build-deps $@
 
-    print "Refresh chroot /usr/src/$repo_name"
+    notice "Refresh chroot /usr/src/$repo_name"
     sudo \
         rm -rf $sdk_path/chroot/$chroot_arch/usr/src/$repo_name
     sudo \
         mkdir -p $sdk_path/chroot/$chroot_arch/usr/src/$repo_name
 
-    print "Sync repo into chroot"
+    act "Sync repo into chroot"
     sudo \
         rsync -a --exclude='.git/' \
         $sdk_path/stage/$repo_name/* \
         $sdk_path/chroot/$chroot_arch/usr/src/$repo_name/
 
-    print "Pack orig tarball in chroot"
+    act "Pack orig tarball in chroot"
     schroot -c devuan-$chroot_arch -u root -s /usr/bin/zsh \
         -d $sdk_path/chroot/$chroot_arch/usr/src/ -- \
         tar cfJ ${repo_name}_${repo_ver}.orig.tar.xz $repo_name
@@ -107,11 +103,12 @@ build-sync() {
 build-start() {
 
     [[ -r $sdk_path/chroot/$chroot_arch/usr/src/$repo_name ]] || {
-        print "$repo_name not synced in chroot $chroot_arch"
-        print "Use build-sync at least once before starting a build"
+        warn "$repo_name not synced in chroot $chroot_arch"
+        warn "Use build-sync at least once before starting a build"
         return 1
     }
 
+    notice "Starting to build $repo_name in chroot $chroot_arch"
     # launch dpkg-buildpackage in chroot
     schroot -c devuan-$chroot_arch -u root -s /usr/bin/zsh \
         -d $sdk_path/chroot/$chroot_arch/usr/src/$repo_name \
@@ -125,6 +122,8 @@ build-finish() {
 
     build_ver=`cat $sdk_path/chroot/$chroot_arch/usr/src/$repo_name/debian/changelog | awk '
 /^'"$repo_name"'/ { gsub(/\(|\)/,"", $2); print $2;  exit }'`
+
+    notice "Finishing build $repo_name versioned $build_ver"
 
     mkdir -p $sdk_path/builds/$repo_name
 
@@ -145,7 +144,7 @@ build-sign() {
 
     build $@
 
-    print "Signing: $repo_name $build_ver $chroot_arch"
+    notice "Signing: $repo_name $build_ver $chroot_arch"
 
     debsign builds/$repo_name/${repo_name}_${build_ver}_i386.changes
 
