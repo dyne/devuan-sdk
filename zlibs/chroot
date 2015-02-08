@@ -100,7 +100,7 @@ chroot-create() {
 
     act "Adding apt sources"
     sudo \
-        rsync -a --delete $sdk_path/config.d/* \
+        rsync -a $sdk_path/config.d/* \
         $sdk_path/chroot/$chroot_arch/
 
     act "Updating package lists"
