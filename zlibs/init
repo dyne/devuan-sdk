@@ -43,7 +43,7 @@ init-repos() {
 }
 
 init-keyring() {
-    [[ -r $sdk_path/.gnupg/pubring.gpg ]] && {
+    [[ -s $sdk_path/.gnupg/pubring.gpg ]] && {
         print "Public keyring found."
         return 0
     }
