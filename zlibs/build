@@ -76,8 +76,9 @@ BEGIN { found=0 }
     TRAPZERR() { }
 
     for d in $repo_deps; do
-        schroot -c devuan-$chroot_arch -u root -d /usr/src -s /usr/bin/zsh \
-        -- apt-get --force-yes -y install $d
+        schroot -c devuan-$chroot_arch -u root \
+            -d /usr/src \
+            -- apt-get --force-yes -y install $d
     done
     TRAPZERR() { 
         error "Error reported, operation aborted."
@@ -102,7 +103,7 @@ build-sync() {
         $sdk_path/chroot/$chroot_arch/usr/src/$repo_name/
 
     act "Pack orig tarball in chroot"
-    schroot -c devuan-$chroot_arch -u root -s /usr/bin/zsh \
+    schroot -c devuan-$chroot_arch -u root \
         -d $sdk_path/chroot/$chroot_arch/usr/src/ -- \
         tar cfJ ${repo_name}_${repo_ver}.orig.tar.xz $repo_name
 
@@ -120,7 +121,7 @@ build-start() {
 
     notice "Starting to build $repo_name in chroot $chroot_arch"
     # launch dpkg-buildpackage in chroot
-    schroot -c devuan-$chroot_arch -u root -s /usr/bin/zsh \
+    schroot -c devuan-$chroot_arch -u root \
         -d $sdk_path/chroot/$chroot_arch/usr/src/$repo_name \
         -- dpkg-buildpackage -uc -us
 
