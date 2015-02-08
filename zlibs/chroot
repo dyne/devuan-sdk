@@ -92,17 +92,15 @@ chroot-create() {
         --no-check-gpg \
         $release $sdk_path/chroot/$chroot_arch $mirror
 
+    act "Adding apt sources"
+    sudo \
+        rsync -a --delete $sdk_path/config.d/* \
+        $sdk_path/chroot/$chroot_arch/
 
     notice "Second stage debootstrap"
 
     schroot -c devuan-$chroot_arch -u root \
         -d /debootstrap -- ./debootstrap --second-stage
-
-    act "Adding apt sources"
-
-    sudo \
-        rsync -a --delete $sdk_path/config.d/* \
-        $sdk_path/chroot/$chroot_arch/
 
     act "Updating package lists"
     schroot -c devuan-$chroot_arch -u root \
