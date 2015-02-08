@@ -75,6 +75,12 @@ BEGIN { found=0 }
 }
 
 '`)
+
+    [[ "${pkg_sources[1]}" = "" ]] && {
+        warning "Package not found: $pkg_name"
+        return 1
+    }
+
     pkg_name=${pkg_sources[1]}
     pkg_name=${pkg_name[(ws:_:)1]}
 
