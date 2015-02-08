@@ -86,9 +86,9 @@ BEGIN { found=0 }
     # render url
     source_url=${mirror}/pool/${section}/${alpha}/${pkg_name}
     
-    pkg_dsc_file=""
-    pkg_debian_file=""
-    pkg_orig_file=""
+    pkg_dsc=""
+    pkg_debian=""
+    pkg_orig=""
     # fetch sources
     for s in $pkg_sources; do
         act "Source file: $s"
@@ -101,32 +101,32 @@ BEGIN { found=0 }
             }
         }
         if [[ "$s" -regex-match ".*\.dsc$" ]]; then
-            pkg_dsc_file=$s 
+            pkg_dsc=$s 
         elif [[ "$s" -regex-match ".*\.debian\..*" ]]; then
-            pkg_debian_file=$s
+            pkg_debian=$s
         else
-            pkg_orig_file=$s
+            pkg_orig=$s
         fi
     done    
 
     # calculate version from package filename
-    pkg_ver=${pkg_dsc_file[(ws:_:)2]}
+    pkg_ver=${pkg_dsc[(ws:_:)2]}
     pkg_ver=${pkg_ver[(ws:-:)1]}
     pkg_ver=${pkg_ver%*.dsc}
 
     # calculate destination directory from tar contents
-    t=`tarcmd ${pkg_orig_file}`
-    pkg_dest_dir=`tar tvf$t sources/$pkg_orig_file | awk '
+    t=`tarcmd ${pkg_orig}`
+    pkg_dest=`tar tvf$t sources/$pkg_orig | awk '
 { print $6; exit }
 '`
-    pkg_dest_dir=${pkg_dest_dir%*/}
+    pkg_dest=${pkg_dest%*/}
 
     notice "Package version: $pkg_ver"
-    act "Package destination: $pkg_dest_dir"
-    act "Package description: $pkg_dsc_file"
-    act "Package orig source: $pkg_orig_file"
-    [[ "$pkg_debian_file" = "" ]] || \
-        act "Package deb  source: $pkg_debian_file"
+    act "Package destination: $pkg_dest"
+    act "Package description: $pkg_dsc"
+    act "Package orig source: $pkg_orig"
+    [[ "$pkg_debian" = "" ]] || \
+        act "Package deb  source: $pkg_debian"
 }
 
 
@@ -135,10 +135,11 @@ package-verify() {
 
     package-import
 
-    pkg_dsc=`cat sources/${pkg_dsc_file}`
+    local _dsc
+    _dsc=`cat sources/${pkg_dsc}`
 
     hash_map=()
-    hash_dsc_256=`print - $pkg_dsc | awk '
+    hash_dsc_256=`print - $_dsc | awk '
 BEGIN { found=0 }
 /^Checksums-Sha256:/ { found=1; next }
 /'"$pkg_name"'/ { if(found==1) print "hash_map+=(" $3 " " $1")"; next }
@@ -153,7 +154,7 @@ BEGIN { found=0 }
         print "SHA256 file checksum: $hash_tar_256 ${f}"
         print
     done
-    print - $pkg_dsc | ${=gpg} --verify
+    print - $_dsc | ${=gpg} --verify
     return $?
 }
 
@@ -162,15 +163,15 @@ package-unpack() {
     package-verify
 
     act "Decompressing orig source file"
-    t=`tarcmd ${pkg_orig_file}`
-    tar xf$t sources/${pkg_orig_file} -C sources
-    [[ -d sources/${pkg_dest_dir} ]] || {
-        warn "Error guessing package destination, not found: sources/${pkg_dest_dir}"
+    t=`tarcmd ${pkg_orig}`
+    tar xf$t sources/${pkg_orig} -C sources
+    [[ -d sources/${pkg_dest} ]] || {
+        warn "Error guessing package destination, not found: sources/${pkg_dest}"
         return 1
     }
-    [[ "$pkg_debian_file" = "" ]] || {
+    [[ "$pkg_debian" = "" ]] || {
         act "Decompressing debian source file"
-        tar xfJ sources/${pkg_debian_file} -C sources/${pkg_dest_dir}/
+        tar xfJ sources/${pkg_debian} -C sources/${pkg_dest}/
         [[ $? = 0 ]] || return 1
     }
 
@@ -197,7 +198,7 @@ package-stage() {
             notice "Creating branch for version: $pkg_ver"
             pushd $sdk_path/stage/$pkg_name
             git checkout -b v${pkg_ver}
-            rsync -raX $sdk_path/sources/$pkg_dest_dir/* \
+            rsync -raX $sdk_path/sources/$pkg_dest/* \
                 $sdk_path/stage/$pkg_name/
             git add .
             git commit -m "branched new version $pkg_ver"
@@ -208,7 +209,7 @@ package-stage() {
         return 0
     }
     mkdir -p $sdk_path/stage/$pkg_name
-    rsync -raX $sdk_path/sources/$pkg_dest_dir/* \
+    rsync -raX $sdk_path/sources/$pkg_dest/* \
         $sdk_path/stage/$pkg_name/
     pushd $sdk_path/stage/$pkg_name
     git init
@@ -240,10 +241,10 @@ package-stamp() {
     cat <<EOF > $dst
 source_name: $pkg_name
 source_ver: $pkg_ver
-source_dir: $pkg_dest_dir
-source_dsc: $pkg_dsc_file
-source_orig: $pkg_orig_file
-source_debian: $pkg_debian_file
+source_dir: $pkg_dest
+source_dsc: $pkg_dsc
+source_orig: $pkg_orig
+source_debian: $pkg_debian
 source_url: $source_url
 begin: hash sha256
 EOF

@@ -48,8 +48,8 @@ typeset -a cmd_line
 
 # package import variables
 vars+=(source_url)
-vars+=(pkg_name pkg_ver pkg_dsc pkg_dest_dir)
-vars+=(pkg_dsc_file pkg_orig_file pkg_debian_file)
+vars+=(pkg_name pkg_ver pkg_dest)
+vars+=(pkg_dsc pkg_orig pkg_debian)
 typeset -A hash_map
 
 # chroot variables
