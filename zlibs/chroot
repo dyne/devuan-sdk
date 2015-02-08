@@ -104,6 +104,9 @@ chroot-create() {
         rsync -a --delete $sdk_path/config.d/* \
         $sdk_path/chroot/$chroot_arch/
 
+    act "Updating package lists"
+    schroot -c devuan-$chroot_arch -u root \
+        apt-get update
 }
 
 chroot-enter() {
@@ -113,8 +116,8 @@ chroot-enter() {
         return 0
     }
 
-    if [[ -r $sdk_path/chroot/$chroot_arch/usr/bin/zsh ]]; then
-        chroot_shell=/usr/bin/zsh
+    if [[ -r $sdk_path/chroot/$chroot_arch/bin/zsh5 ]]; then
+        chroot_shell=/bin/zsh5
     else
         warn "Zsh not found in chroot $chroot_arch"
         chroot_shell=/bin/bash

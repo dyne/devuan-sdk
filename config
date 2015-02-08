@@ -10,5 +10,5 @@ section=main
 
 
 # deboostrap settings for chroot
-chroot_include=bzip2,zsh,vim-nox,sysvinit
+chroot_include=bzip2,zsh,vim-nox,sysvinit,debian-keyring
 chroot_exclude=systemd,systemd-sysv,libsystemd0
