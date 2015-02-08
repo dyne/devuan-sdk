@@ -210,7 +210,7 @@ package-stage() {
             git commit -m "branched new version $pkg_ver"
             popd
 
-            stamp
+            package-stamp
         }
         return 0
     }
@@ -227,7 +227,7 @@ package-stage() {
     act "Remote: https://git.devuan.org/packages-base/${pkg_name}"
 
 
-    stamp
+    package-stamp
 
     return 0
 
