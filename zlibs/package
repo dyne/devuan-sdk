@@ -148,7 +148,7 @@ package-verify() {
     hash_dsc_256=`print - $_dsc | awk '
 BEGIN { found=0 }
 /^Checksums-Sha256:/ { found=1; next }
-/'"$pkg_name"'/ { if(found==1) print "hash_map+=(" $3 " " $1")"; next }
+/^ / { if(found==1) print "hash_map+=(" $3 " " $1")"; next }
 { if(found==1) exit }
 '`
     eval $hash_dsc_256 # fills hash_map
