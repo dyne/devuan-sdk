@@ -73,11 +73,16 @@ BEGIN { found=0 }
     act "${#repo_deps} dependencies found"
     act "$repo_deps"
 
+    TRAPZERR() { }
+
     for d in $repo_deps; do
         schroot -c devuan-$chroot_arch -u root -d /usr/src -s /usr/bin/zsh \
         -- apt-get --force-yes -y install $d
     done
-
+    TRAPZERR() { 
+        error "Error reported, operation aborted."
+        return 1
+    }
 }
 
 build-sync() {
