@@ -56,7 +56,7 @@ typeset -A hash_map
 vars+=(chroot_arch chroot_shell)
 
 # build variables
-vars+=(repo_name repo_ver repo_deps)
+vars+=(repo_name repo_ver repo_deps build_ver orig_name)
 
 # initialize globals
 for v in $vars; do
@@ -76,7 +76,7 @@ status() {
 }
 
 TRAPDEBUG() {
-    RPROMPT="${pkg_name:-$repo_name}:${pkg_ver:-$repo_ver}:${chroot_arch}"
+    RPROMPT="${repo_name:-$pkg_name}:${repo_ver:-$pkg_ver}:${chroot_arch}"
 }
 TRAPZERR() { 
     error "Error reported, operation aborted."

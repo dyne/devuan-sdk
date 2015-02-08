@@ -23,6 +23,10 @@
 init() {
     # initialization
     init-repos && init-keyring
+
+    notice "Devuan SDK succesfully initialized"
+    act "Tab completed command sets: package- build- chroot-"
+    act "For usage information refer to the README."
     return $?
 }
 
