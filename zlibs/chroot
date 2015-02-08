@@ -100,16 +100,10 @@ chroot-create() {
 
     act "Adding apt sources"
 
-    schroot -c devuan-$chroot_arch -u root \
-        cat <<EOF  >> $sdk_path/chroot/$chroot_arch/etc/apt/sources.list
-deb http://ftp.debian.org/debian/ jessie main
-deb-src http://ftp.debian.org/debian/ jessie main
-deb http://security.debian.org/ jessie/updates main
-deb-src http://security.debian.org/ jessie/updates main
-EOF
+    sudo \
+        rsync -a --delete $sdk_path/config.d/* \
+        $sdk_path/chroot/$chroot_arch/
 
-
-# dpkg-statoverride --remove /etc/exim4/passwd.client
 }
 
 chroot-enter() {

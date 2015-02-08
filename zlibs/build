@@ -120,6 +120,14 @@ build-finish() {
 
     build $@
 
+    src=$sdk_path/chroot/$chroot_arch/usr/src
+
+    [[ -r $src/${repo_name}_${build_ver}_${chroot_arch}.changes ]] || {
+        warn "no build found in chroot $chroot_arch for $repo_name $build_ver"
+        return 1
+    }
+
+
     build_ver=`cat $sdk_path/chroot/$chroot_arch/usr/src/$repo_name/debian/changelog | awk '
 /^'"$repo_name"'/ { gsub(/\(|\)/,"", $2); print $2;  exit }'`
 
@@ -127,17 +135,58 @@ build-finish() {
 
     mkdir -p $sdk_path/builds/$repo_name
 
-    src=$sdk_path/chroot/$chroot_arch/usr/src
+
+
+    # all built packages
+    typeset -A bld
+    bld=(`cat $src/$repo_name/debian/control | awk '
+/^Package:/ { print $2 }
+/^Architecture:/ { print $2 }
+'`)
+    act "Built packages: ${(k)bld}"
+    arch=""
+    for b in ${(k)bld}; do
+        case ${bld[$b]} in
+            all) arch=all ;;
+            *) arch=$chroot_arch ;;
+        esac
+
+        # TODO: contemplate more XC-Package-Type
+        # note: should generally now be replaced with Package-Type
+        if [[ "$b" =~ "-udeb" ]]; then
+            sudo \
+                mv $src/${b}_${build_ver}_${arch}.udeb \
+                builds/$repo_name
+        else # generic debs
+            sudo \
+                mv $src/${b}_${build_ver}_${arch}.deb \
+                builds/$repo_name
+        fi
+    done
+
+    # default sources
     sudo \
         mv \
-        $src/${repo_name}-dbg_${build_ver}_${chroot_arch}.deb \
         $src/${repo_name}_${build_ver}.debian.tar.xz \
         $src/${repo_name}_${build_ver}.dsc \
         $src/${repo_name}_${build_ver}_${chroot_arch}.changes \
-        $src/${repo_name}_${build_ver}_${chroot_arch}.deb \
         $src/${repo_name}_${repo_ver}.orig.tar.xz \
         builds/$repo_name
 
+    build-sign
+
+    build-index
+
+}
+
+build-index() {
+    # update local repository
+    pushd $sdk_path/builds
+    rm -f Packages.xz
+    dpkg-scanpackages . | awk '
+/Filename:/ { gsub(/\.\//, "", $2); print $0; next }
+{ print $0 }' | xz -9 > Packages.xz
+    popd
 }
 
 build-sign() {
@@ -146,7 +195,7 @@ build-sign() {
 
     notice "Signing: $repo_name $build_ver $chroot_arch"
 
-    debsign builds/$repo_name/${repo_name}_${build_ver}_i386.changes
+    debsign builds/$repo_name/${repo_name}_${build_ver}_${chroot_arch}.changes
 
 }
 
