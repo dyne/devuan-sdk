@@ -102,10 +102,14 @@ build-sync() {
         $sdk_path/stage/$repo_name/* \
         $sdk_path/chroot/$chroot_arch/usr/src/$repo_name/
 
+    # find out how to name the orig file
+    orig_name=`cat $sdk_path/stage/$repo_name/debian/control | awk '
+/^Source: / { print $2; exit }'`
+
     act "Pack orig tarball in chroot"
     schroot -c devuan-$chroot_arch -u root \
         -d $sdk_path/chroot/$chroot_arch/usr/src/ -- \
-        tar cfJ ${repo_name}_${repo_ver}.orig.tar.xz $repo_name
+        tar cfJ ${orig_name}_${repo_ver}.orig.tar.xz $repo_name
 
 }
 
@@ -133,14 +137,13 @@ build-finish() {
 
     src=$sdk_path/chroot/$chroot_arch/usr/src
 
+    build_ver=`cat $sdk_path/chroot/$chroot_arch/usr/src/$repo_name/debian/changelog | awk '
+/^'"$repo_name"'/ { gsub(/\(|\)/,"", $2); print $2;  exit }'`
+
     [[ -r $src/${repo_name}_${build_ver}_${chroot_arch}.changes ]] || {
         warn "no build found in chroot $chroot_arch for $repo_name $build_ver"
         return 1
     }
-
-
-    build_ver=`cat $sdk_path/chroot/$chroot_arch/usr/src/$repo_name/debian/changelog | awk '
-/^'"$repo_name"'/ { gsub(/\(|\)/,"", $2); print $2;  exit }'`
 
     notice "Finishing build $repo_name versioned $build_ver"
 
@@ -181,7 +184,7 @@ build-finish() {
         $src/${repo_name}_${build_ver}.debian.tar.xz \
         $src/${repo_name}_${build_ver}.dsc \
         $src/${repo_name}_${build_ver}_${chroot_arch}.changes \
-        $src/${repo_name}_${repo_ver}.orig.tar.xz \
+        $src/${orig_name}_${repo_ver}.orig.tar.xz \
         builds/$repo_name
 
 }
