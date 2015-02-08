@@ -48,9 +48,8 @@ init-keyring() {
         return 0
     }
 
-    _cmd_name=$cmd_name
 
-    cmd_name=debian-keyring
+    pkg_name=debian-keyring
     
     package-unpack
 
