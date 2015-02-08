@@ -1,0 +1,12 @@
+# Devuan SDK default sources.list for chroot use
+
+# Local Devuan SDK repository
+# deb http://localhost:12345/ /
+
+# Debian 8.0
+deb http://ftp.debian.org/debian/ jessie main
+deb-src http://ftp.debian.org/debian/ jessie main
+
+# Debian 8.0 security fixes
+deb http://security.debian.org/ jessie/updates main
+deb-src http://security.debian.org/ jessie/updates main
