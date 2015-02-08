@@ -23,33 +23,42 @@
 # web client command
 webc="elinks -no-numbering -dump -dump-width 256"
 
+# gnupg commands
+gpg_fast="gpg2 --no-default-keyring --no-auto-check-trustdb --keyring $sdk_path/.gnupg/pubring.gpg --batch"
+gpg="gpg2 --no-default-keyring --keyring $sdk_path/.gnupg/pubring.gpg --batch"
+
 package() {
-    [[ "$1" = "" ]] && {
-        print "usage: package: package-name [version]"
-        return 1
-    }
 
-    pkg_name=${cmd_name}
+    cmd_line=(${=@})
 
-    rprompt
+    if [[ "$1" = "" ]]; then
+        [[ "$pkg_name" = "" ]] && {
+            print "Missing arguments: package-name [version]"
+            return 1
+        }
+    else
+        pkg_name=$1
+        pkg_ver=${2:-$pkg_ver}
+    fi
+
+
+    RPROMPT=$pkg_name:$pkg_ver
 
     mkdir -p sources
     
     print
-    print "Package loaded: $cmd_name"
+    print "Package loaded: $pkg_name"
     print
 }
 
 
-import() {
-    [[ "$cmd_name" = "" ]] && {
-        print "no package name set?!"
-        return 1
-    }
+package-import() {
+
+    package $@
 
     mkdir -p sources
 
-    pkg_url=https://packages.debian.org/${release}/${cmd_name}
+    pkg_url=https://packages.debian.org/${release}/${pkg_name}
     web_info=`${=webc} ${pkg_url}`
     # fetch sources
     typeset -aU pkg_sources
@@ -125,13 +134,11 @@ BEGIN { found=0 }
     rprompt
 }
 
-gpg_fast="gpg2 --no-default-keyring --no-auto-check-trustdb --keyring $sdk_path/.gnupg/pubring.gpg --batch"
-gpg="gpg2 --no-default-keyring --keyring $sdk_path/.gnupg/pubring.gpg --batch"
 
 
-verify() {
+package-verify() {
 
-    import
+    package-import
 
     pkg_dsc=`cat sources/${pkg_dsc_file}`
 
@@ -155,9 +162,9 @@ BEGIN { found=0 }
     return $?
 }
 
-unpack() {
+package-unpack() {
 
-    verify
+    package-verify
 
     print
     print "Decompressing orig source file"
@@ -180,9 +187,9 @@ unpack() {
 # wrapper to include local gitconfig    
     
 
-stage() {
+package-stage() {
 
-    unpack   
+    package-unpack   
 
     mkdir -p stage
     [[ -d $sdk_path/stage/$pkg_name ]] && {
@@ -226,7 +233,9 @@ stage() {
 
 }
 
-stamp() {
+package-stamp() {
+
+    package $@
 
     [[ -d $sdk_path/stage/$pkg_name ]] || {
         print "Cannot stamp project, not staged yet"
@@ -236,7 +245,6 @@ stamp() {
     dst=$sdk_path/stage/$pkg_name/.devuan
 
     cat <<EOF > $dst
-package_name: $cmd_name
 source_name: $pkg_name
 source_ver: $pkg_ver
 source_dir: $pkg_dest_dir
@@ -256,52 +264,6 @@ EOF
     git add .devuan
     git commit -m "import stamp version $pkg_ver"    
     popd
-}
-
-init-repos() {
-    url="https://git.devuan.org/groups"
-    git="git@git.devuan.org:packages-base"
-    print "Updating list of Devuan packages"
-    repos=`curl -s https://git.devuan.org/groups/packages-base | awk '/a class=.*project/ { print $3}' | cut -d'"' -f2`
-    pushd $sdk_path/stage
-    for i in ${(f)repos}; do
-        base=`basename $i`
-        [[ -d $base ]] || {
-            git clone ${git}/${base}.git
-        }
-    done
-    popd
-}
-
-init-keyring() {
-    [[ -r $sdk_path/.gnupg/pubring.gpg ]] && {
-        print "Public keyring found."
-        return 0
-    }
-
-    _cmd_name=$cmd_name
-
-    cmd_name=debian-keyring
-    
-    unpack
-
-    mkdir -p $sdk_path/.gnupg
-
-
-    keys=`find sources/debian-keyring-${pkg_ver}/debian-maintainers-gpg -type f`
-    for i in ${(f)keys}; do
-        cat $i | ${=gpg_fast} --import
-    done
-
-    keys=`find sources/debian-keyring-${pkg_ver}/debian-keyring-gpg -type f`
-    for i in ${(f)keys}; do
-        cat $i | ${=gpg_fast} --import
-    done
-
-    print "GnuPG debian maintainers keyring succesfully imported"
-    pkg_name=$_pkg_name
-    pkg_ver=$_pkg_ver
-    rprompt
 }
 
 

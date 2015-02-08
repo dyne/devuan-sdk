@@ -39,5 +39,5 @@ isemail() {
 }
 
 rprompt() {
-    RPROMPT="${pkg_name}"
+    RPROMPT="${pkg_name}:${pkg_ver}"
 }

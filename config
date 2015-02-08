@@ -7,3 +7,8 @@
 mirror=http://ftp.debian.org/debian
 release=jessie
 section=main
+
+
+# deboostrap settings for chroot
+chroot_include=bzip2,zsh,vim-nox,sysvinit
+chroot_exclude=systemd,systemd-sysv,libsystemd0

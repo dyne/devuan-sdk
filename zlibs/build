@@ -1,0 +1,174 @@
+#!/usr/bin/env zsh
+
+# Devuan SDK - build management
+
+# Copyright (C) 2015 Dyne.org Foundation
+#
+# Devuan SDK is designed, written and maintained by Denis Roio <jaromil@dyne.org>
+#
+# This source code is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This source code is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  Please refer
+# to the GNU Public License for more details.
+#
+# You should have received a copy of the GNU Public License along with
+# this source code; if not, write to: Free Software Foundation, Inc.,
+# 675 Mass Ave, Cambridge, MA 02139, USA.
+
+build() {
+
+    cmd_line=(${=@})
+
+    if [[ "$1" = "" ]]; then
+        [[ "$repo_name" = "" ]] && {
+            # inherit name from current package
+            if [[ "$pkg_name" = "" ]]; then
+                print "Missing arguments: repo-name"
+                return 1
+            else
+                repo_name=$pkg_name
+                repo_ver=$pkg_ver
+            fi
+        }
+    else
+        
+        repo_name=$1
+        
+    fi
+    
+    [[ -d $sdk_path/stage/$repo_name ]] || {
+        print "Repository not found: $sdk_path/stage/$repo_name"
+        return 1
+    }
+    repo_ver=`cat $sdk_path/stage/$repo_name/.devuan | awk '
+/source_ver:/ { print $2 }'`
+    
+    export RPROMPT=$repo_name:$repo_ver:$chroot_arch
+
+    print
+    print "Building repository: $repo_name"
+    print
+
+}
+
+build-deps() {
+
+    build $@
+
+    repo_deps=(`awk '
+func strip_deps(i) {
+  out=gensub(/Build-Depends:|,|\|/,"","g")
+  print out
+}
+BEGIN { found=0 }
+/^Build-Depends:/ { found=1; strip_deps($0); next }
+/^ / { if(found==1) strip_deps($0); next }
+/^$/ { found=0 }
+{ found=0 }
+' $sdk_path/stage/$repo_name/debian/control | \
+ sed -e 's/([^()]*)//g' -e 's/\[[^()]*\]//g'`)
+    print "${#repo_deps} dependencies found"
+    print "$repo_deps"
+
+    schroot -c devuan-$chroot_arch -u root -d /usr/src -s /usr/bin/zsh \
+        -- apt-get -y install ${=repo_deps}
+
+
+}
+
+build-sync() {
+
+    build-deps $@
+
+    print "Refresh chroot /usr/src/$repo_name"
+    sudo \
+        rm -rf $sdk_path/chroot/$chroot_arch/usr/src/$repo_name
+    sudo \
+        mkdir -p $sdk_path/chroot/$chroot_arch/usr/src/$repo_name
+
+    print "Sync repo into chroot"
+    sudo \
+        rsync -a --exclude='.git/' \
+        $sdk_path/stage/$repo_name/* \
+        $sdk_path/chroot/$chroot_arch/usr/src/$repo_name/
+
+    print "Pack orig tarball in chroot"
+    schroot -c devuan-$chroot_arch -u root -s /usr/bin/zsh \
+        -d $sdk_path/chroot/$chroot_arch/usr/src/ -- \
+        tar cfJ ${repo_name}_${repo_ver}.orig.tar.xz $repo_name
+
+}
+
+build-start() {
+
+    [[ -r $sdk_path/chroot/$chroot_arch/usr/src/$repo_name ]] || {
+        print "$repo_name not synced in chroot $chroot_arch"
+        print "Use build-sync at least once before starting a build"
+        return 1
+    }
+
+    # launch dpkg-buildpackage in chroot
+    schroot -c devuan-$chroot_arch -u root -s /usr/bin/zsh \
+        -d $sdk_path/chroot/$chroot_arch/usr/src/$repo_name \
+        -- dpkg-buildpackage -uc -us
+
+}
+
+build-finish() {
+
+    build $@
+
+    build_ver=`cat $sdk_path/chroot/$chroot_arch/usr/src/$repo_name/debian/changelog | awk '
+/^'"$repo_name"'/ { gsub(/\(|\)/,"", $2); print $2;  exit }'`
+
+    mkdir -p $sdk_path/builds/$repo_name
+
+    src=$sdk_path/chroot/$chroot_arch/usr/src
+    sudo \
+        mv \
+        $src/${repo_name}-dbg_${build_ver}_${chroot_arch}.deb \
+        $src/${repo_name}_${build_ver}.debian.tar.xz \
+        $src/${repo_name}_${build_ver}.dsc \
+        $src/${repo_name}_${build_ver}_${chroot_arch}.changes \
+        $src/${repo_name}_${build_ver}_${chroot_arch}.deb \
+        $src/${repo_name}_${repo_ver}.orig.tar.xz \
+        builds/$repo_name
+
+}
+
+build-sign() {
+
+    build $@
+
+    print "Signing: $repo_name $build_ver $chroot_arch"
+
+    debsign builds/$repo_name/${repo_name}_${build_ver}_i386.changes
+
+}
+
+
+
+# obsolete snippets
+
+        
+    #  ${caz#*\(}  ${caz%\)*}
+
+    
+_build() {
+
+    repo_dsc_file=`find $sdk_path/sources -maxdepth 1 \
+         -name "*$repo_name*" \
+        | grep "$repo_ver.*dsc"`
+    [[ "$repo_dsc_file" = "" ]] && {
+        print "Desc file not found for $repo_name $repo_ver"
+        return 1
+    }
+    print "Desc file: ${repo_dsc_file:t}"
+
+    repo_dsc=`cat $repo_dsc_file`
+}

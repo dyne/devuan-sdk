@@ -1,0 +1,74 @@
+#!/usr/bin/env zsh
+
+# Devuan SDK - package import management
+
+# Copyright (C) 2015 Dyne.org Foundation
+#
+# Devuan SDK is designed, written and maintained by Denis Roio <jaromil@dyne.org>
+#
+# This source code is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This source code is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  Please refer
+# to the GNU Public License for more details.
+#
+# You should have received a copy of the GNU Public License along with
+# this source code; if not, write to: Free Software Foundation, Inc.,
+# 675 Mass Ave, Cambridge, MA 02139, USA.
+
+init() {
+    # initialization
+    init-repos && init-keyring
+    return $?
+}
+
+init-repos() {
+    url="https://git.devuan.org/groups"
+    git="git@git.devuan.org:packages-base"
+    print "Updating list of Devuan packages"
+    repos=`curl -s https://git.devuan.org/groups/packages-base | awk '/a class=.*project/ { print $3}' | cut -d'"' -f2`
+    mkdir -p $sdk_path/stage
+    pushd $sdk_path/stage
+    for i in ${(f)repos}; do
+        base=`basename $i`
+        [[ -d $base ]] || {
+            git clone ${git}/${base}.git
+        }
+    done
+    popd
+}
+
+init-keyring() {
+    [[ -r $sdk_path/.gnupg/pubring.gpg ]] && {
+        print "Public keyring found."
+        return 0
+    }
+
+    _cmd_name=$cmd_name
+
+    cmd_name=debian-keyring
+    
+    package-unpack
+
+    mkdir -p $sdk_path/.gnupg
+
+
+    keys=`find sources/debian-keyring-${pkg_ver}/debian-maintainers-gpg -type f`
+    for i in ${(f)keys}; do
+        cat $i | ${=gpg_fast} --import
+    done
+
+    keys=`find sources/debian-keyring-${pkg_ver}/debian-keyring-gpg -type f`
+    for i in ${(f)keys}; do
+        cat $i | ${=gpg_fast} --import
+    done
+
+    print "GnuPG debian maintainers keyring succesfully imported"
+    pkg_name=$_pkg_name
+    pkg_ver=$_pkg_ver
+    rprompt
+}

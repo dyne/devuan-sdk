@@ -1,6 +1,0 @@
-#!/usr/bin/env zsh
-
-# sudo wrapper for suid scripts
-
-umask 0122
-${=@}

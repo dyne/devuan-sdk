@@ -25,14 +25,21 @@
 zmodload zsh/system
 zmodload zsh/regex
 
+source zlibs/init
 source zlibs/helpers
-source zlibs/fetch
+source zlibs/package
 source zlibs/chroot
+source zlibs/build
+source zlibs/messaging
 
+# config variables
+typeset -h mirror release section
+typeset -h chroot_include chroot_exclude
 source config
 
 # global variables
-typeset -h sdk_path cmd_name
+typeset -h sdk_path sdk_loaded
+typeset -a cmd_line
 
 # package import variables
 typeset -h source_url
@@ -40,32 +47,31 @@ typeset -h pkg_name pkg_ver pkg_dsc pkg_dest_dir
 typeset -h pkg_dsc_file pkg_orig_file pkg_debian_file
 typeset -A hash_map
 
-# build chroot variables
-typeset -h chroot_arch
+# chroot variables
+typeset -h chroot_arch chroot_shell
+
+# build variables
+typeset -h repo_name repo_ver repo_deps
 
 # we assume source sdk is always run from the source dir
 sdk_path=`pwd`
 
-[[ "$1" = "init" ]] && {
-    # initialization
-    init-repos
-    init-keyring
-    return $?
-}
-
-rprompt
 
 TRAPZERR() { 
-    print "Error reported, canceling operation."
+    print "Error reported, operation aborted."
+    export RPROMPT=""
     return 1
 }
 
-[[ $sdk_loaded = 1 ]] || {
-    print "Devuan SDK loaded"
+vars=(sdk_path mirror)
+
+if [[ $sdk_loaded = 1 ]]; then
+    act "Devuan SDK reloaded"
+else
+    notice "Devuan SDK loaded"
     typeset -h sdk_loaded
     sdk_loaded=1
-}
-
-sdk_loaded=1
+    export RPROMPT=Devuan
+fi
 
 return 0

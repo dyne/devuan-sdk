@@ -20,26 +20,45 @@
 # this source code; if not, write to: Free Software Foundation, Inc.,
 # 675 Mass Ave, Cambridge, MA 02139, USA.
 
+chroot() {
+
+    cmd_line=(${=@})
+
+    if [[ "$1" = "" ]]; then
+        [[ "$chroot_arch" = "" ]] && {
+            print "Missing argument: arch"
+            return 1
+        }
+    else
+        chroot_arch="$1"
+    fi
+    
+    RPROMPT=$chroot_arch
+
+    mkdir -p chroot
+
+    print
+    print "Chroot selected: $chroot_arch"
+    print
+}
+
 chroot-config() {
-    [[ "$1" = "" ]] && {
-        print "Need an argument: chroot architecture"
-        return 1
-    }
-    chroot_arch="$1"
+
+    chroot $@
 
     [[ -r /etc/schroot/chroot.d/devuan-$chroot_arch ]] && {
         print "Chroot configuration already existing: /etc/schroot/chroot.d/devuan-$chroot_arch"
         return 0
     }
 
-    mkdir -p $sdk_path/build/$chroot_arch
+    mkdir -p $sdk_path/chroot/$chroot_arch
 
     tmp=`mktemp`
     chmod a+r $tmp
     cat <<EOF >> $tmp
 [devuan-$chroot_arch]
 type=directory
-directory=$sdk_path/build/$chroot_arch
+directory=$sdk_path/chroot/$chroot_arch
 description=Devuan SDK $chroot_arch
 users=$USER
 root-users=$USER
@@ -57,10 +76,10 @@ EOF
 
 chroot-create() {
 
-    chroot-config $1
+    chroot-config $@
 
-    [[ -r $sdk_path/build/$chroot_arch/usr/bin/zsh ]] && {
-        print "Chroot already existing: $sdk_path/build/$chroot_arch"
+    [[ -r $sdk_path/chroot/$chroot_arch/usr/bin/zsh ]] && {
+        print "Chroot already existing: $sdk_path/chroot/$chroot_arch"
         return 0
     }
 
@@ -73,10 +92,10 @@ chroot-create() {
         --variant=buildd \
         --verbose \
         --foreign --arch $chroot_arch \
-        --include=bzip2,zsh,sysvinit \
-        --exclude=systemd,systemd-sysv,libsystemd0 \
+        --include=$chroot_include \
+        --exclude=$chroot_exclude \
         --no-check-gpg \
-        $release $sdk_path/build/$chroot_arch $mirror
+        $release $sdk_path/chroot/$chroot_arch $mirror
 
 
     print
@@ -86,16 +105,35 @@ chroot-create() {
     schroot -c devuan-$chroot_arch -u root \
         -d /debootstrap -- ./debootstrap --second-stage
 
+    print "Adding apt sources"
+
+    schroot -c devuan-$chroot_arch -u root \
+        cat <<EOF  >> $sdk_path/chroot/$chroot_arch/etc/apt/sources.list
+deb http://ftp.debian.org/debian/ jessie main
+deb-src http://ftp.debian.org/debian/ jessie main
+deb http://security.debian.org/ jessie/updates main
+deb-src http://security.debian.org/ jessie/updates main
+EOF
+
+
+# dpkg-statoverride --remove /etc/exim4/passwd.client
 }
 
 chroot-enter() {
     [[ "$1" = "" ]] && {
         print "Specify which chroot to enter:"
-        schroot -l | awk -F: '/devuan/ {print $2}'
+        schroot -l | awk -F: '/devuan/ { print $2 }'
         return 0
     }
 
-    schroot -c devuan-$1 -u root -d /root -s /usr/bin/zsh
+    if [[ -r $sdk_path/chroot/$chroot_arch/usr/bin/zsh ]]; then
+        chroot_shell=/usr/bin/zsh
+    else
+        print "Zsh not found in chroot $chroot_arch"
+        chroot_shell=/bin/bash
+    fi
+        
+    schroot -c $1 -u root -d /root -s $chroot_shell
     return $?
 }
 
