@@ -47,7 +47,9 @@ build() {
     }
     repo_ver=`cat $sdk_path/stage/$repo_name/.devuan | awk '
 /source_ver:/ { print $2 }'`
-    
+
+    mkdir -p builds/
+
     notice "Building repository: $repo_name"
 
 }
@@ -79,7 +81,7 @@ BEGIN { found=0 }
 
 build-sync() {
 
-    build-deps $@
+    build $@
 
     notice "Refresh chroot /usr/src/$repo_name"
     sudo \
@@ -101,6 +103,8 @@ build-sync() {
 }
 
 build-start() {
+
+    build $@
 
     [[ -r $sdk_path/chroot/$chroot_arch/usr/src/$repo_name ]] || {
         warn "$repo_name not synced in chroot $chroot_arch"
@@ -172,10 +176,6 @@ build-finish() {
         $src/${repo_name}_${build_ver}_${chroot_arch}.changes \
         $src/${repo_name}_${repo_ver}.orig.tar.xz \
         builds/$repo_name
-
-    build-sign
-
-    build-index
 
 }
 
