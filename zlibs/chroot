@@ -45,7 +45,8 @@ chroot-config() {
 
     [[ -r /etc/schroot/chroot.d/devuan-$chroot_arch ]] && {
         warn "Chroot configuration already existing: /etc/schroot/chroot.d/devuan-$chroot_arch"
-        return 0
+        warn "Delete it and eventually erase chroot/$chroot_arch to rewrite"
+        return 1
     }
 
     mkdir -p $sdk_path/chroot/$chroot_arch
@@ -92,15 +93,15 @@ chroot-create() {
         --no-check-gpg \
         $release $sdk_path/chroot/$chroot_arch $mirror
 
-    act "Adding apt sources"
-    sudo \
-        rsync -a --delete $sdk_path/config.d/* \
-        $sdk_path/chroot/$chroot_arch/
-
     notice "Second stage debootstrap"
 
     schroot -c devuan-$chroot_arch -u root \
         -d /debootstrap -- ./debootstrap --second-stage
+
+    act "Adding apt sources"
+    sudo \
+        rsync -a --delete $sdk_path/config.d/* \
+        $sdk_path/chroot/$chroot_arch/
 
     act "Updating package lists"
     schroot -c devuan-$chroot_arch -u root \
