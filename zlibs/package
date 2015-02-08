@@ -133,7 +133,7 @@ BEGIN { found=0 }
 
 package-verify() {
 
-    package-import
+    package $@
 
     local _dsc
     _dsc=`cat sources/${pkg_dsc}`
@@ -160,7 +160,7 @@ BEGIN { found=0 }
 
 package-unpack() {
 
-    package-verify
+    package $@
 
     act "Decompressing orig source file"
     t=`tarcmd ${pkg_orig}`
@@ -183,7 +183,7 @@ package-unpack() {
 
 package-stage() {
 
-    package-unpack   
+    package $@
 
     mkdir -p stage
     [[ -d $sdk_path/stage/$pkg_name ]] && {
