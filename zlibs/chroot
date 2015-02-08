@@ -60,7 +60,7 @@ directory=$sdk_path/chroot/$chroot_arch
 description=Devuan SDK $chroot_arch
 users=$USER
 root-users=$USER
-aliases=$release
+aliases=${release}-${chroot_arch}
 EOF
 
     sudo \

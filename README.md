@@ -137,7 +137,7 @@ subdir and version them with git, also stamping them with a little
 Debian:
 
 ```
-package-stamp
+package-stage
 ```
 
 Will output a list of files from the git import, but also SDK
@@ -201,7 +201,7 @@ chroot-enter devuan-i386
 Or even from outside the chroot:
 
 ```
-schroot -c devuan-i386 -u root -d /root -s /bin/zsh5
+schroot -c devuan-i386 -u root -d /root -s /bin/zsh
 ```
 
 Is the same really.  The `i386` is implicit from previous
