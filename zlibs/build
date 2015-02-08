@@ -45,8 +45,13 @@ build() {
         warn "Repository not found: $sdk_path/stage/$repo_name"
         return 1
     }
+
     repo_ver=`cat $sdk_path/stage/$repo_name/.devuan | awk '
 /source_ver:/ { print $2 }'`
+
+    # find out how to name the orig file
+    orig_name=`cat $sdk_path/stage/$repo_name/debian/control | awk '
+/^Source: / { print $2; exit }'`
 
     mkdir -p builds/
 
@@ -102,10 +107,6 @@ build-sync() {
         $sdk_path/stage/$repo_name/* \
         $sdk_path/chroot/$chroot_arch/usr/src/$repo_name/
 
-    # find out how to name the orig file
-    orig_name=`cat $sdk_path/stage/$repo_name/debian/control | awk '
-/^Source: / { print $2; exit }'`
-
     act "Pack orig tarball in chroot"
     schroot -c devuan-$chroot_arch -u root \
         -d $sdk_path/chroot/$chroot_arch/usr/src/ -- \
@@ -138,7 +139,7 @@ build-finish() {
     src=$sdk_path/chroot/$chroot_arch/usr/src
 
     build_ver=`cat $sdk_path/chroot/$chroot_arch/usr/src/$repo_name/debian/changelog | awk '
-/^'"$repo_name"'/ { gsub(/\(|\)/,"", $2); print $2;  exit }'`
+/^'"$orig_name"'/ { gsub(/\(|\)/,"", $2); print $2;  exit }'`
 
     [[ -r $src/${orig_name}_${build_ver}_${chroot_arch}.changes ]] || {
         warn "no build found in chroot $chroot_arch for $repo_name $build_ver"
