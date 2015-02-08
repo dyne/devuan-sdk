@@ -140,7 +140,7 @@ build-finish() {
     build_ver=`cat $sdk_path/chroot/$chroot_arch/usr/src/$repo_name/debian/changelog | awk '
 /^'"$repo_name"'/ { gsub(/\(|\)/,"", $2); print $2;  exit }'`
 
-    [[ -r $src/${repo_name}_${build_ver}_${chroot_arch}.changes ]] || {
+    [[ -r $src/${orig_name}_${build_ver}_${chroot_arch}.changes ]] || {
         warn "no build found in chroot $chroot_arch for $repo_name $build_ver"
         return 1
     }
@@ -181,9 +181,9 @@ build-finish() {
     # default sources
     sudo \
         mv \
-        $src/${repo_name}_${build_ver}.debian.tar.xz \
-        $src/${repo_name}_${build_ver}.dsc \
-        $src/${repo_name}_${build_ver}_${chroot_arch}.changes \
+        $src/${orig_name}_${build_ver}.debian.tar.xz \
+        $src/${orig_name}_${build_ver}.dsc \
+        $src/${orig_name}_${build_ver}_${chroot_arch}.changes \
         $src/${orig_name}_${repo_ver}.orig.tar.xz \
         builds/$repo_name
 
