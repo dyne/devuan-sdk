@@ -62,7 +62,7 @@ root-users=$USER
 aliases=$release
 EOF
 
-    sudo zsh $sdk_path/zlibs/sudo \
+    sudo \
         cp $tmp /etc/schroot/chroot.d/devuan-$chroot_arch
     res=$?
 
@@ -82,7 +82,7 @@ chroot-create() {
 
     notice "First stage debootstrap"
 
-    sudo zsh $sdk_path/zlibs/sudo \
+    sudo \
         debootstrap --components=main \
         --variant=buildd \
         --verbose \
