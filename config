@@ -9,6 +9,9 @@ release=jessie
 section=main
 
 
-# deboostrap settings for chroot
+# deboostrap settings for chroots
 chroot_include=bzip2,zsh,vim-nox,sysvinit,debian-keyring
 chroot_exclude=systemd,systemd-sysv,libsystemd0
+# safe to leave untouched
+chroot_variant=buildd
+chroot_components=main
