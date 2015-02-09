@@ -47,28 +47,15 @@ init-repos() {
 }
 
 init-keyring() {
-    [[ -s $sdk_path/.gnupg/pubring.gpg ]] && {
+    [[ -s $sdk_path/.gnupg/debian-keyring.gpg ]] && {
         print "Public keyring found."
         return 0
     }
 
-
-    pkg_name=debian-keyring
-    
-    package-unpack
-
     mkdir -p $sdk_path/.gnupg
 
-
-    keys=`find sources/debian-keyring-${pkg_ver}/debian-maintainers-gpg -type f`
-    for i in ${(f)keys}; do
-        cat $i | ${=gpg_fast} --import
-    done
-
-    keys=`find sources/debian-keyring-${pkg_ver}/debian-keyring-gpg -type f`
-    for i in ${(f)keys}; do
-        cat $i | ${=gpg_fast} --import
-    done
+    pushd $sdk_path/.gnupg/
+    rsync -az --progress keyring.debian.org::keyrings/keyrings/debian-keyring.gpg .
 
     print "GnuPG debian maintainers keyring succesfully imported"
     pkg_name=$_pkg_name

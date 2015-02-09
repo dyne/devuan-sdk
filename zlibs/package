@@ -24,12 +24,10 @@
 webc="elinks -no-numbering -dump -dump-width 256"
 
 # gnupg commands
-gpg_fast="gpg2 --no-default-keyring --no-auto-check-trustdb --keyring $sdk_path/.gnupg/pubring.gpg --batch"
-gpg="gpg2 --no-default-keyring --keyring $sdk_path/.gnupg/pubring.gpg --batch"
+gpg_fast="gpg2 --no-default-keyring --no-auto-check-trustdb --keyring $sdk_path/.gnupg/debian-keyring.gpg"
+gpg="gpg2 --no-default-keyring --keyring $sdk_path/.gnupg/debian-keyring.gpg --batch"
 
 package() {
-
-    cmd_line=(${=@})
 
     if [[ "$1" = "" ]]; then
         [[ "$pkg_name" = "" ]] && {
@@ -43,7 +41,20 @@ package() {
 
 
     mkdir -p sources
-    
+
+    # get dsc file or if not present import the package
+    pkg_dsc=`find sources -name "$pkg_name*$pkg_ver*.dsc"`
+    if [[ "$pkg_dsc" = "" ]]; then
+        package-import
+    else
+        pkg_dsc=`basename $pkg_dsc`
+    fi
+
+    # calculate version from package filename
+    pkg_ver=${pkg_dsc[(ws:_:)2]}
+    pkg_ver=${pkg_ver[(ws:-:)1]}
+    pkg_ver=${pkg_ver%*.dsc}
+
     notice "Importing package: $pkg_name"
 
 }
@@ -115,10 +126,6 @@ BEGIN { found=0 }
         fi
     done    
 
-    # calculate version from package filename
-    pkg_ver=${pkg_dsc[(ws:_:)2]}
-    pkg_ver=${pkg_ver[(ws:-:)1]}
-    pkg_ver=${pkg_ver%*.dsc}
 
     # calculate destination directory from tar contents
     t=`tarcmd ${pkg_orig}`
@@ -170,14 +177,15 @@ package-unpack() {
 
     act "Decompressing orig source file"
     t=`tarcmd ${pkg_orig}`
-    tar xf$t sources/${pkg_orig} -C sources
+    tar x${t}f sources/${pkg_orig} -C sources
     [[ -d sources/${pkg_dest} ]] || {
         warn "Error guessing package destination, not found: sources/${pkg_dest}"
         return 1
     }
+    t=`tarcmd ${pkg_debian}`
     [[ "$pkg_debian" = "" ]] || {
         act "Decompressing debian source file"
-        tar xfJ sources/${pkg_debian} -C sources/${pkg_dest}/
+        tar x${t}f sources/${pkg_debian} -C sources/${pkg_dest}/
         [[ $? = 0 ]] || return 1
     }
 
