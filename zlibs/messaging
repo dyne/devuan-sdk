@@ -72,8 +72,6 @@ function _msg() {
     esac
 
     ${=command} "${progname} $fg_bold[$pcolor]$pchars$reset_color ${message}$color[reset_color]" >&2
-    print >&2 # leave space
-
     return $returncode
 }
 
@@ -85,7 +83,7 @@ function _message say act() {
 }
 
 function _verbose xxx func() {
-    [[ $DEBUG = 1 ]] && _msg verbose $@
+    [[ $debug = 1 ]] || [[ "$debug" =~ "on" ]] && _msg verbose $@
     return 0
 }
 

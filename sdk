@@ -41,6 +41,7 @@ arrs=()
 # config variables
 vars+=(mirror release section)
 vars+=(chroot_include chroot_exclude)
+vars+=(debug)
 
 # global variables
 vars+=(sdk_path)
