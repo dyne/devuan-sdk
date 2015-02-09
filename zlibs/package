@@ -36,7 +36,6 @@ package() {
         }
     else
         pkg_name=$1
-        pkg_ver=${2:-$pkg_ver}
     fi
 
 
@@ -45,7 +44,8 @@ package() {
     # get dsc file or if not present import the package
     pkg_dsc=`find sources -name "$pkg_name*$pkg_ver*.dsc"`
     if [[ "$pkg_dsc" = "" ]]; then
-        package-import
+        package-import $pkg_name
+        return $?
     else
         pkg_dsc=`basename $pkg_dsc`
     fi
@@ -62,13 +62,13 @@ package() {
 
 package-import() {
 
-    package $@
+    pkg_name=${1:-$pkg_name}
 
     mkdir -p sources
 
     pkg_url=https://packages.debian.org/${release}/${pkg_name}
     web_info=`${=webc} ${pkg_url}`
-    # fetch sources
+    # check latest sources
     typeset -aU pkg_sources
     pkg_sources=(`print $web_info | awk '
 
@@ -126,6 +126,8 @@ BEGIN { found=0 }
         fi
     done    
 
+    # re-parse names
+    package
 
     # calculate destination directory from tar contents
     t=`tarcmd ${pkg_orig}`
@@ -275,25 +277,3 @@ EOF
 }
 
 
-# Old and deprecated
-version-latest() {
-    # scrape web search for latest package version
-    # may need tweaking as we go by
-    print "Querying: https://packages.debian.org/search?keywords=${pkg_name}&searchon=names&suite=${release}&section=${section}"
-    ${=webc} "https://packages.debian.org/search?keywords=${pkg_name}&searchon=names&suite=${release}&section=${section}" | awk '
-
-BEGIN { found=0 }
-
-/Package '"$pkg_name"'/ { found=1 }
-
-{ if(found>0) found++
-  if(found==5) print $0 }
-
-' | trim | sysread pkg_latest_ver
-    # split to *: 
-    pkg_latest_ver=${pkg_latest_ver[(ws@:@)1]}
-
-    print "$pkg_name latest version is ${pkg_latest_ver}"
-
-    version $pkg_latest_ver
-}
