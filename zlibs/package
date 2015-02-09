@@ -179,6 +179,8 @@ package-import() {
     req=(src_name src_ver src_files)
     reqck
 
+    notice "Importing package: $src_name"
+
     # get first package letter
     alpha=${src_name[1]}
 
@@ -189,10 +191,10 @@ package-import() {
     # fetch sources
     for s in $src_files; do
 
-        act "Source file: $s"
+        func "Source file: $s"
         if [[ -r sources/${s} ]]; then
-            act "file found already downloaded: sources/$s"
-            act "`file sources/$s`"
+            func "file found already downloaded: sources/$s"
+            func "`file sources/$s`"
         else
             curl ${source_url}/$s -o sources/$s
             [[ $? = 0 ]] || {
@@ -235,6 +237,7 @@ package-verify() {
     freq=(sources/$src_dsc)
     reqck
 
+    notice "Verifying signatures for $src_name $src_ver"
     local _dsc
     _dsc=`cat sources/${src_dsc}`
 

@@ -2,7 +2,7 @@
 
 ## Simple (package) development kit
 
-### version 0.2
+### version 0.3
 
 This set of scripts aid package maintainers to import sources from
 Debian, verify signatures and stage them to be imported inside
@@ -15,7 +15,7 @@ plus gnupg2 and curl.
 
 # Quick start
 
-Using Debian or Ubuntu, install `zsh` `elinks` `gnupg2` `schroot` `debootstrap`
+Using Debian or Ubuntu, install `zsh` `gnupg2` `schroot` `debootstrap`
 
 Then clone the SDK repository:
 
@@ -76,24 +76,19 @@ From inside devuan-sdk/ give the following commands:
 ```
 source sdk
 package nethack-console
-version latest
 package-import
 ```
 
 The SDK output (excluding curl progress bars) will be then:
 
 ```
-Devuan (*) Importing package: nethack-console
-Devuan  .  Source package name: nethack
-Devuan  .  Source file: nethack_3.4.3-15.dsc
-Devuan  .  Source file: nethack_3.4.3.orig.tar.gz
-Devuan  .  Source file: nethack_3.4.3-15.debian.tar.xz
-Devuan (*) Package version: 3.4.3
-Devuan  .  Package destination: nethack-3.4.3
+Devuan (*) Importing package: nethack
+Devuan  .  Downloading sources from: http://ftp.debian.org/debian//pool/main/n/nethack
+Devuan (*) Source version:  3.4.3-15
+Devuan  .  Source destination: nethack-3.4.3
 Devuan  .  Package description: nethack_3.4.3-15.dsc
 Devuan  .  Package orig source: nethack_3.4.3.orig.tar.gz
-Devuan  .  Package deb  source: nethack_3.4.3-15.debian.tar.xz
-```
+Devuan  .  Package deb  source: nethack_3.4.3-15.debian.tar.xz```
 
 Then let's verify signatures with
 
@@ -104,7 +99,6 @@ package-verify
 And check the output carefully for the hashes to match:
 
 ```
-Devuan (*) Importing package: nethack-console
 Devuan  .  Compare SHA256 checksums
 SHA256 desc checksum: bb39c3d2a9ee2df4a0c8fdde708fbc63740853a7608d2f4c560b488124866fe4 nethack_3.4.3.orig.tar.gz
 SHA256 file checksum: bb39c3d2a9ee2df4a0c8fdde708fbc63740853a7608d2f4c560b488124866fe4 nethack_3.4.3.orig.tar.gz
@@ -145,7 +139,6 @@ Will output a list of files from the git import, but also SDK
 messages:
 
 ```
-Devuan (*) Importing package: nethack-console
 Initialized empty Git repository in /home/jrml/devel/devuan-sdk/stage/nethack-console/.git/
 [master (root-commit) 9e7a5b4] Import from Debian jessie/main package nethack-console-3.4.3
  749 files changed, 412550 insertions(+)
@@ -183,7 +176,7 @@ then create the chroot (will ask for the super user password with
 sudo):
 
 ```
-chroot-create i386
+arch i386
 ```
 
 Then wait since this will take a while the first time. The chroot will
@@ -196,24 +189,29 @@ Once this process is finished, one can "enter" the chroot and use it
 from inside (also install packages and try out things). Just do:
 
 ```
-chroot-enter devuan-i386
+chroot-enter
 ```
 
-Or even from outside the chroot:
-
-```
-schroot -c devuan-i386 -u root -d /root -s /bin/zsh
-```
-
-Is the same really.  The `i386` is implicit from previous
-commands. Chroots are nested operating systems stored as directory
-structures into the sdk subdir `chroot`, everything being changed
-while inside will be reflected in those directories, making it
-possible to `sudo cp` files from the host to chroot.
+Chroots are nested operating systems stored as directory structures
+into the sdk subdir `chroot`, everything being changed while inside
+will be reflected in those directories, making it possible to `sudo
+cp` files from the host to chroot.
 
 ## Build the package
 
-TODO
+Just type:
+
+```
+build
+```
+
+If all goes well, results will be in the SDK subdir `builds/`.
+
+To sign the package use:
+
+```
+build-sign
+```
 
 # Caveat
 
