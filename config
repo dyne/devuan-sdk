@@ -4,7 +4,7 @@
 # syntax: variable=value
 # (no spaces before and after the equal sign)
 
-mirror=http://cdn.debian.net/debian/
+mirror=http://ftp.debian.org/debian/
 release=jessie
 section=main
 
@@ -14,4 +14,4 @@ chroot_include=bzip2,zsh,vim-nox,sysvinit,debian-keyring
 chroot_exclude=systemd,systemd-sysv,libsystemd0
 # safe to leave untouched
 chroot_variant=buildd
-chroot_components=main
+chroot_comp=main # components

@@ -21,16 +21,24 @@
 # 675 Mass Ave, Cambridge, MA 02139, USA.
 
 init() {
+    fn init
+
     # initialization
     init-repos && init-keyring
 
+    mkdir -p $sdk_path/sources
+    mkdir -p $sdk_path/stage
+    mkdir -p $sdk_path/chroot
+    mkdir -p $sdk_path/builds
+
     notice "Devuan SDK succesfully initialized"
-    act "Tab completed command sets: package- build- chroot-"
     act "For usage information refer to the README."
     return $?
 }
 
 init-repos() {
+    fn init-repos
+
     url="https://git.devuan.org/groups"
     git="git@git.devuan.org:packages-base"
     print "Updating list of Devuan packages"
@@ -47,6 +55,8 @@ init-repos() {
 }
 
 init-keyring() {
+    fn init-keyring
+
     [[ -s $sdk_path/.gnupg/debian-keyring.gpg ]] && {
         print "Public keyring found."
         return 0

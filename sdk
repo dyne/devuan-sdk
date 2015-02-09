@@ -20,18 +20,10 @@
 # this source code; if not, write to: Free Software Foundation, Inc.,
 # 675 Mass Ave, Cambridge, MA 02139, USA.
 
-# reqs: elinks, curl, gnupg2, sudo, schroot, debootstrap
+# reqs: curl, gnupg2, sudo, schroot, debootstrap
 
 zmodload zsh/system
 zmodload zsh/regex
-
-source zlibs/init
-source zlibs/helpers
-source zlibs/package
-source zlibs/chroot
-source zlibs/build
-source zlibs/release
-source zlibs/messaging
 
 typeset -aU vars
 typeset -aU arrs
@@ -40,8 +32,8 @@ arrs=()
 
 # config variables
 vars+=(mirror release section)
-vars+=(chroot_include chroot_exclude chroot_variant chroot_components )
-vars+=(debug)
+vars+=(chroot_include chroot_exclude chroot_variant chroot_comp)
+vars+=(debug cur_fun)
 
 # global variables
 vars+=(sdk_path)
@@ -50,8 +42,11 @@ typeset -a cmd_line
 
 # package import variables
 vars+=(source_url)
-vars+=(pkg_name pkg_ver pkg_dest)
-vars+=(pkg_dsc pkg_orig pkg_debian)
+vars+=(pkg_name q_name q_ver)
+vars+=(src_name src_ver src_dest orig_ver)
+vars+=(src_orig src_dsc src_debian)
+vars+=(staged_ver)
+arrs+=(src_files)
 typeset -A hash_map
 
 # chroot variables
@@ -63,6 +58,9 @@ vars+=(repo_name repo_ver repo_deps build_ver orig_name)
 # release variables
 vars+=(iso_arch)
 
+# function requirement checks
+arrs+=(req freq)
+
 # initialize globals
 for v in $vars; do
     typeset -h $v
@@ -73,21 +71,35 @@ source config
 # we assume source sdk is always run from the source dir
 sdk_path=`pwd`
 
+# load all zlibs
+source zlibs/init
+source zlibs/helpers
+source zlibs/package
+source zlibs/chroot
+source zlibs/git
+source zlibs/build
+source zlibs/release
+source zlibs/messaging
+
+
 dump status() {
     act "Devuan SDK status dump:"
     for v in $vars; do
         print "$v \t ${(P)v}"
     done
+    for a in $arrs; do
+        print "$a \t ${(P)a}"
+    done
 }
 
+# unset DEBUG_BEFORE_CMD
 TRAPDEBUG() {
-    RPROMPT="${repo_name:-$pkg_name}:${repo_ver:-$pkg_ver}:${chroot_arch}"
+    RPROMPT="${repo_name:-$src_name} ${repo_ver:-$src_ver} ${chroot_arch}"
 }
 TRAPZERR() { 
-    error "Error reported, operation aborted."
+    error "$cur_fun() :: error reported, operation aborted."
     return 1
 }
-
 
 if [[ $sdk_loaded = 1 ]]; then
     act "Devuan SDK reloaded"

@@ -28,6 +28,12 @@
 autoload colors
 colors
 
+typeset -h margin="          "
+
+
+# For gettext
+TEXTDOMAIN=dowse
+
 function _msg() {
     local msg="$2"
     command -v gettext 1>/dev/null 2>/dev/null && msg="$(gettext -s "$2")"

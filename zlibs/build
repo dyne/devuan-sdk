@@ -21,47 +21,32 @@
 # 675 Mass Ave, Cambridge, MA 02139, USA.
 
 build() {
-
-    cmd_line=(${=@})
-
-    if [[ "$1" = "" ]]; then
-        [[ "$repo_name" = "" ]] && {
-            # inherit name from current package
-            if [[ "$pkg_name" = "" ]]; then
-                print "Missing arguments: repo-name"
-                return 1
-            else
-                repo_name=$pkg_name
-                repo_ver=$pkg_ver
-            fi
-        }
-    else
-        
-        repo_name=$1
-        
-    fi
-    
-    [[ -d $sdk_path/stage/$repo_name ]] || {
-        warn "Repository not found: $sdk_path/stage/$repo_name"
-        return 1
-    }
-
-    repo_ver=`cat $sdk_path/stage/$repo_name/.devuan | awk '
-/source_ver:/ { print $2 }'`
-
-    # find out how to name the orig file
-    orig_name=`cat $sdk_path/stage/$repo_name/debian/control | awk '
-/^Source: / { print $2; exit }'`
-
-    mkdir -p builds/
+    fn build
+    req=(src_name src_ver chroot_arch)
+    freq=(stage/$src_name/debian/changelog
+        chroot/$chroot_arch/etc/passwd)
+    reqck
 
     notice "Building repository: $repo_name"
+
+    build-deps
+
+    build-sync
+
+    build-start
+
+    build-finish
 
 }
 
 build-deps() {
+    fn build-deps
+    req=(src_name chroot_arch)
+    freq=(stage/$src_name/debian/control
+        chroot/$chroot_arch/etc/passwd)
+    ckreq
 
-    build $@
+    notice "Installing dependencies for package $src_name in $chroot_arch"
 
     repo_deps=(`awk '
 func strip_deps(i) {
@@ -73,8 +58,9 @@ BEGIN { found=0 }
 /^ / { if(found==1) strip_deps($0); next }
 /^$/ { found=0 }
 { found=0 }
-' $sdk_path/stage/$repo_name/debian/control | \
+' $sdk_path/stage/$src_name/debian/control | \
  sed -e 's/([^()]*)//g' -e 's/\[[^()]*\]//g'`)
+
     act "${#repo_deps} dependencies found"
     act "$repo_deps"
 
@@ -92,69 +78,71 @@ BEGIN { found=0 }
 }
 
 build-sync() {
+    fn build-sync
+    req=(chroot_arch src_name src_ver orig_ver)
+    freq=(stage/$src_name/debian/control
+        chroot/$chroot_arch/etc/passwd)
+    ckreq
 
-    build $@
-
-    notice "Refresh chroot /usr/src/$repo_name"
+    notice "Refresh source in chroot /usr/src/$src_name"
     sudo \
-        rm -rf $sdk_path/chroot/$chroot_arch/usr/src/$repo_name
+        rm -rf $sdk_path/chroot/$chroot_arch/usr/src/$src_name
     sudo \
-        mkdir -p $sdk_path/chroot/$chroot_arch/usr/src/$repo_name
+        mkdir -p $sdk_path/chroot/$chroot_arch/usr/src/$src_name
 
     act "Sync repo into chroot"
     sudo \
         rsync -a --exclude='.git/' \
-        $sdk_path/stage/$repo_name/* \
-        $sdk_path/chroot/$chroot_arch/usr/src/$repo_name/
+        $sdk_path/stage/$src_name/* \
+        $sdk_path/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver}
+
 
     act "Pack orig tarball in chroot"
     schroot -c devuan-$chroot_arch -u root \
         -d $sdk_path/chroot/$chroot_arch/usr/src/ -- \
-        tar cfJ ${orig_name}_${repo_ver}.orig.tar.xz $repo_name
+        tar cfJ ${src_name}_${orig_ver}.orig.tar.xz \
+        ${src_name}-${orig_ver}
+
+    act "Pack debian tarball in chroot"
+    schroot -c devuan-$chroot_arch -u root \
+        -d $sdk_path/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver} \
+        -- tar cfJ ${src_name}_${src_ver}.debian.tar.xz debian
+   schroot -c devuan-$chroot_arch -u root \
+       -d $sdk_path/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver} \
+       mv ${src_name}_${src_ver}.debian.tar.xz ..
 
 }
 
 build-start() {
-
-    build $@
-
-    [[ -r $sdk_path/chroot/$chroot_arch/usr/src/$repo_name ]] || {
-        warn "$repo_name not synced in chroot $chroot_arch"
-        warn "Use build-sync at least once before starting a build"
-        return 1
-    }
+    fn build-start
+    req=(src_name chroot_arch orig_ver)
+    freq=(chroot/$chroot_arch/usr/src/$src_name-$orig_ver)
+    ckreq
 
     notice "Starting to build $repo_name in chroot $chroot_arch"
     # launch dpkg-buildpackage in chroot
     schroot -c devuan-$chroot_arch -u root \
-        -d $sdk_path/chroot/$chroot_arch/usr/src/$repo_name \
+        -d $sdk_path/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver} \
         -- dpkg-buildpackage -uc -us
 
 }
 
 build-finish() {
+    src=chroot/$chroot_arch/usr/src
 
-    build $@
+    fn build-finish
+    req=(src_name chroot_arch orig_ver)
+    freq=(chroot/$chroot_arch/etc/passwd
+    $src/${src_name}_${src_ver}_${chroot_arch}.changes)
+    ckreq
 
-    src=$sdk_path/chroot/$chroot_arch/usr/src
+    notice "Finishing build $src_name versioned $src_ver"
 
-    build_ver=`cat $sdk_path/chroot/$chroot_arch/usr/src/$repo_name/debian/changelog | awk '
-/^'"$orig_name"'/ { gsub(/\(|\)/,"", $2); print $2;  exit }'`
-
-    [[ -r $src/${orig_name}_${build_ver}_${chroot_arch}.changes ]] || {
-        warn "no build found in chroot $chroot_arch for $repo_name $build_ver"
-        return 1
-    }
-
-    notice "Finishing build $repo_name versioned $build_ver"
-
-    mkdir -p $sdk_path/builds/$repo_name
-
-
+    mkdir -p $sdk_path/builds/$src_name
 
     # all built packages
     typeset -A bld
-    bld=(`cat $src/$repo_name/debian/control | awk '
+    bld=(`cat $sdk_path/$src/$src_name-$orig_ver/debian/control | awk '
 /^Package:/ { print $2 }
 /^Architecture:/ { print $2 }
 '`)
@@ -170,23 +158,23 @@ build-finish() {
         # note: should generally now be replaced with Package-Type
         if [[ "$b" =~ "-udeb" ]]; then
             sudo \
-                mv $src/${b}_${build_ver}_${arch}.udeb \
-                builds/$repo_name
+                mv $sdk_path/$src/${b}_${src_ver}_${arch}.udeb \
+                builds/$src_name
         else # generic debs
             sudo \
-                mv $src/${b}_${build_ver}_${arch}.deb \
-                builds/$repo_name
+                mv $sdk_path/$src/${b}_${src_ver}_${arch}.deb \
+                builds/$src_name
         fi
     done
 
     # default sources
     sudo \
         mv \
-        $src/${orig_name}_${build_ver}.debian.tar.xz \
-        $src/${orig_name}_${build_ver}.dsc \
-        $src/${orig_name}_${build_ver}_${chroot_arch}.changes \
-        $src/${orig_name}_${repo_ver}.orig.tar.xz \
-        builds/$repo_name
+        $sdk_path/$src/${src_name}_${src_ver}.debian.tar.xz \
+        $sdk_path/$src/${src_name}_${src_ver}.dsc \
+        $sdk_path/$src/${src_name}_${src_ver}_${chroot_arch}.changes \
+        $sdk_path/$src/${src_name}_${orig_ver}.orig.tar.xz \
+        builds/$src_name
 
 }
 
@@ -201,12 +189,14 @@ build-index() {
 }
 
 build-sign() {
+    fn build-sign
+    req=(src_name src_ver chroot_arch)
+    freq=(builds/$src_name/${src_name}_${src_ver}_${chroot_arch}.changes)
+    ckreq
 
-    build $@
+    notice "Signing: $src_name $src_ver $chroot_arch"
 
-    notice "Signing: $repo_name $build_ver $chroot_arch"
-
-    debsign builds/$repo_name/${repo_name}_${build_ver}_${chroot_arch}.changes
+    debsign builds/$src_name/${src_name}_${src_ver}_${chroot_arch}.changes
 
 }
 

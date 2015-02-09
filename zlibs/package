@@ -27,131 +27,216 @@ webc="elinks -no-numbering -dump -dump-width 256"
 gpg_fast="gpg2 --no-default-keyring --no-auto-check-trustdb --keyring $sdk_path/.gnupg/debian-keyring.gpg"
 gpg="gpg2 --no-default-keyring --keyring $sdk_path/.gnupg/debian-keyring.gpg --batch"
 
-package() {
 
-    if [[ "$1" = "" ]]; then
-        [[ "$pkg_name" = "" ]] && {
-            warn "Missing arguments: package-name [version]"
-            return 1
+package-query-debian() {
+    fn package-query-debian
+    req=(q_name)
+    reqck
+
+    pkg_url=https://packages.debian.org/${release}/${q_name}
+    act "contacting $pkg_url"
+
+    #### Debian website parsing
+    # check latest sources
+    src_files=(`curl -s $pkg_url | awk '
+
+BEGIN { found=0 }
+
+/Download Source Package/ { found=1; next }
+{ if(found > 0) found++ }
+/<li>/ { 
+  if(found == 4)  print $0
+  if(found == 8)  print $0
+  if(found == 12) print $0
+}
+/Maintainer/ { exit }
+' | html_strip | sed 's/\[// ; s/\]//'`)
+
+    func "found: $src_files"
+
+    [[ "${src_files[1]}" = "" ]] && {
+        warning "Source not found for package: $q_name"
+        return 1
+    }
+
+    pkg_name=$q_name
+    src_name=${src_files[1]}
+    src_name=${src_name[(ws:_:)1]}
+
+    for s in $src_files; do
+        [[ "$s" -regex-match ".*\.orig\..*" ]] && {
+            src_orig=$s
         }
+        [[ "$s" -regex-match ".*\.dsc$" ]] && {
+            src_ver=${s#*${src_name}_}
+            src_ver=${src_ver%.dsc*}
+            src_dsc=$s
+        }
+            
+        [[ "$s" -regex-match ".*\.debian\..*" ]] && {
+            src_debian=$s
+        }
+    done
+}
+
+
+version() { 
+    fn version
+    req=(src_name src_files)
+    reqck
+
+    q_ver="$1"
+    if [[ "$q_ver" = "" ]]; then
+
+        act "$src_name package version set blank"
+        src_ver=""
+
+    elif [[ "$q_ver" = "latest" ]]; then
+
+        package-query-debian
+        for s in $src_files; do
+            if [[ "$s" -regex-match ".*\.dsc$" ]]; then
+                func "detected package dsc"
+                act "Latest source version: $src_ver"
+            fi
+        done
+
+    elif [[ "$q_ver" = "list" ]]; then
+
+        #### Debian website parsing
+        notice "Listing available versions for Debian package: $pkg_name"
+        curl -s "https://packages.debian.org/search?keywords=$pkg_name&searchon=all&suite=all&section=all" | awk '
+BEGIN { found=0 }
+/resultlink/ { found=1; print $0; next }
+{ if(found > 0) found++
+  if(found == 4) { gsub(/<br>/,"",$0); print $0; found=0 }
+}' | sed 's/<[^>]\+>//g'
+        
     else
-        pkg_name=$1
+
+        src_ver=$q_ver
+        act "$src_name source version set to $src_ver"
+        # TODO detect automatically source filenames: we could render
+        # them, but we don't know which compression was used for them
+        # (tar.* extension)
+
     fi
+    RPROMPT="${repo_name:-$src_name} ${repo_ver:-$src_ver} ${chroot_arch}"
+}
 
+get_src_dest() {
+    # calculate destination directory from tar contents
+    t=`tarcmd sources/${src_orig}`
+    src_dest=`tar tvf$t sources/$src_orig | awk '
+{ print $6; exit }
+'`
+    src_dest=${src_dest%*/}
+}
 
-    mkdir -p sources
+package() {
+    fn package
 
-    # get dsc file or if not present import the package
-    pkg_dsc=`find sources -name "$pkg_name*$pkg_ver*.dsc"`
-    if [[ "$pkg_dsc" = "" ]]; then
-        package-import $pkg_name
-        return $?
-    else
-        pkg_dsc=`basename $pkg_dsc`
-    fi
+    # reset all values
+    unset source_url
+    unset pkg_name q_name q_ver
+    unset src_name src_ver src_name src_ver orig_ver
+    unset src_orig src_dsc src_debian src_dest
+    unset src_files
+    unset staged_ver
 
-    # calculate version from package filename
-    pkg_ver=${pkg_dsc[(ws:_:)2]}
-    pkg_ver=${pkg_ver[(ws:-:)1]}
-    pkg_ver=${pkg_ver%*.dsc}
+    [[ "$1" = "" ]] && {
+        act "package name set blank"
+        return 0
+    }
 
-    notice "Importing package: $pkg_name"
+    q_name=$1
+
+    package-query-debian $q_name
+    # at this point we know the src_name
+
+    notice "Source selected: $src_name"
+
+    [[ -r sources/$src_dsc ]] && {
+        act "source package already downloaded"
+        get_src_dest
+    }
+
+    [[ -r stage/$src_name/debian/changelog ]] && {
+        get_staged_version
+        act "source already staged at version $staged_ver"
+        src_ver=$staged_ver
+    }
+
+    orig_ver=${src_ver%-*}
+
+    return 0
 
 }
 
 
 package-import() {
-
-    pkg_name=${1:-$pkg_name}
-
-    mkdir -p sources
-
-    pkg_url=https://packages.debian.org/${release}/${pkg_name}
-    web_info=`${=webc} ${pkg_url}`
-    # check latest sources
-    typeset -aU pkg_sources
-    pkg_sources=(`print $web_info | awk '
-
-BEGIN { found=0 }
-
-/Download Source Package/ { found=1; next }
-
-/Maintainer/ { exit }
-
-{ if(found==1) {
-      src=sub(/.*\*.*\[/, "", $0)
-      src=sub(/\]$/, "", $src)
-      print $src
-  }
-}
-
-'`)
-
-    [[ "${pkg_sources[1]}" = "" ]] && {
-        warning "Package not found: $pkg_name"
-        return 1
-    }
-
-    pkg_name=${pkg_sources[1]}
-    pkg_name=${pkg_name[(ws:_:)1]}
-
-    act "Source package name: $pkg_name"
+    fn package-import
+    req=(src_name src_ver src_files)
+    reqck
 
     # get first package letter
-    alpha=${pkg_name[1]}
+    alpha=${src_name[1]}
 
     # render url
-    source_url=${mirror}/pool/${section}/${alpha}/${pkg_name}
-    
-    pkg_dsc=""
-    pkg_debian=""
-    pkg_orig=""
+    source_url=${mirror}/pool/${section}/${alpha}/${src_name}
+    act "Downloading sources from: $source_url"
+
     # fetch sources
-    for s in $pkg_sources; do
+    for s in $src_files; do
+
         act "Source file: $s"
-        [[ -r sources/${s} ]] || {
-            curl "${source_url}/$s" -o sources/$s
+        if [[ -r sources/${s} ]]; then
+            act "file found already downloaded: sources/$s"
+            act "`file sources/$s`"
+        else
+            curl ${source_url}/$s -o sources/$s
             [[ $? = 0 ]] || {
                 warn "Error downloading: $s"
                 warn "Url: ${source_url}/$s"
                 return 1
             }
-        }
+        fi
+
         if [[ "$s" -regex-match ".*\.dsc$" ]]; then
-            pkg_dsc=$s 
+            func "detected package dsc"
+            file sources/$s | grep -i 'text' > /dev/null
+            src_dsc=$s 
         elif [[ "$s" -regex-match ".*\.debian\..*" ]]; then
-            pkg_debian=$s
+            func "detected package debian"
+            file sources/$s | grep -i 'compressed data' > /dev/null
+            src_debian=$s
         else
-            pkg_orig=$s
+            func "detected package orig"
+            file sources/$s | grep -i 'compressed data' > /dev/null
+            src_orig=$s
         fi
     done    
 
-    # re-parse names
-    package
+    get_src_dest
 
-    # calculate destination directory from tar contents
-    t=`tarcmd ${pkg_orig}`
-    pkg_dest=`tar tvf$t sources/$pkg_orig | awk '
-{ print $6; exit }
-'`
-    pkg_dest=${pkg_dest%*/}
-
-    notice "Package version: $pkg_ver"
-    act "Package destination: $pkg_dest"
-    act "Package description: $pkg_dsc"
-    act "Package orig source: $pkg_orig"
-    [[ "$pkg_debian" = "" ]] || \
-        act "Package deb  source: $pkg_debian"
+    notice "Source version:  $src_ver"
+    act "Source destination: $src_dest"
+    act "Package description: $src_dsc"
+    act "Package orig source: $src_orig"
+    [[ "$src_debian" = "" ]] || \
+        act "Package deb  source: $src_debian"
 }
 
 
 
 package-verify() {
-
-    package $@
+    fn package-verify
+    req=(src_dsc)
+    freq=(sources/$src_dsc)
+    reqck
 
     local _dsc
-    _dsc=`cat sources/${pkg_dsc}`
+    _dsc=`cat sources/${src_dsc}`
 
     hash_map=()
     hash_dsc_256=`print - $_dsc | awk '
@@ -170,80 +255,93 @@ BEGIN { found=0 }
         print
     done
     print - $_dsc | ${=gpg} --verify
-    return $?
+
 }
 
 package-unpack() {
-
-    package $@
+    fn package-unpack
+    req=(src_orig src_debian)
+    freq=(sources/$src_orig sources/$src_debian)
+    reqck
 
     act "Decompressing orig source file"
-    t=`tarcmd ${pkg_orig}`
-    tar x${t}f sources/${pkg_orig} -C sources
-    [[ -d sources/${pkg_dest} ]] || {
-        warn "Error guessing package destination, not found: sources/${pkg_dest}"
+    t=`tarcmd ${src_orig}`
+    tar x${t}f sources/${src_orig} -C sources
+
+    [[ -d sources/${src_dest} ]] || {
+        warn "Destination, not found: sources/${src_dest}"
         return 1
     }
-    t=`tarcmd ${pkg_debian}`
-    [[ "$pkg_debian" = "" ]] || {
-        act "Decompressing debian source file"
-        tar x${t}f sources/${pkg_debian} -C sources/${pkg_dest}/
-        [[ $? = 0 ]] || return 1
-    }
 
-    return $?
+    t=`tarcmd ${src_debian}`
+    act "Decompressing debian source file"
+    tar x${t}f sources/${src_debian} -C sources/${src_dest}/
+
 }
 
 # wrapper to include local gitconfig    
-    
 
-package-stage() {
 
-    package $@
+####################
 
-    mkdir -p stage
-    [[ -d $sdk_path/stage/$pkg_name ]] && {
-        staged_pkg_ver="no stamp"
-        [[ -r $sdk_path/stage/$pkg_name/.devuan ]] && {
-            staged_pkg_ver=`awk '/source_ver/ {print $2}' $sdk_path/stage/$pkg_name/.devuan`
+
+
+_pkg_obsolete() {
+
+# just notes
+
+    [[ "$pkg_ver" = "" ]] || {
+        _dsc=(`find sources -name "$src_name*$pkg_ver*.dsc"`)
+        [[ ${#_dsc} -gt 1 ]] && {
+            warn "ambiguous version $pkg_ver"
+            for s in $_dsc; do
+                _ver=${s[(ws:_:)2]}
+                _ver=${_ver[(ws:-:)1]}
+                _ver=${_ver%*.dsc}
+                printf "%s %s\t::\t%s\n" $margin $_ver $s
+                return 1
+            done
         }
-        notice "Already staged: $pkg_name ($staged_pkg_ver)"
-        act "Remote: https://git.devuan.org/packages-base/${pkg_name}"
-
-        [[ "$staged_pkg_ver" = "$pkg_ver" ]] || {
-            notice "Creating branch for version: $pkg_ver"
-            pushd $sdk_path/stage/$pkg_name
-            git checkout -b v${pkg_ver}
-            rsync -raX $sdk_path/sources/$pkg_dest/* \
-                $sdk_path/stage/$pkg_name/
-            git add .
-            git commit -m "branched new version $pkg_ver"
-            popd
-
-            package-stamp
+        [[ "$_dsc" = "" ]] && {
+            warn "$pkg_name package version $pkg_ver not found"
+            return 1
         }
-        return 0
     }
-    mkdir -p $sdk_path/stage/$pkg_name
-    rsync -raX $sdk_path/sources/$pkg_dest/* \
-        $sdk_path/stage/$pkg_name/
-    pushd $sdk_path/stage/$pkg_name
-    git init
-    git add .
-    git commit -m "Import from Debian $release/$section package $pkg_name-$pkg_ver"
-    git remote add origin git@git.devuan.org:packages-base/${pkg_name}
-    popd
-    notice "Stage successfull: stage/$pkg_name"
-    act "Remote: https://git.devuan.org/packages-base/${pkg_name}"
 
-
-    package-stamp
-
-    return 0
-
+    [[ "$pkg_ver" = "" ]] && {
+        warn "package version not specified"
+        srcs=(`find sources -name "$pkg_name*.dsc"`)
+        if [[ ${#srcs} -gt 1 ]]; then
+            act "available sources:"
+            for s in $srcs; do
+                _ver=${s#*${src_name}_}
+                _ver=${_ver%.dsc*}
+                src_dsc=$s
+                _ver=${s[(ws:_:)2]}
+                _ver=${_ver[(ws:-:)1]}
+                _ver=${_ver%*.dsc}
+                printf "%s %s\t::\t%s\n" $margin $_ver $s
+                return 1
+            done
+        elif [[ ${#srcs} = 0 ]]; then
+            warn "nothing available locally, choose a version:"
+            version list
+            act "use the 'version' command to select one"
+            act "to simply choose the latest, use 'version latest'"
+            return 0
+        else
+            # calculate version from package filename
+            pkg_dsc=`basename $srcs`
+            pkg_ver=${pkg_dsc[(ws:_:)2]}
+            pkg_ver=${pkg_ver[(ws:-:)1]}
+            pkg_ver=${pkg_ver%*.dsc}
+            act "version guessed from the only available source: $pkg_ver"
+            version $pkg_ver
+        fi
+    }
 }
 
-package-stamp() {
+_pkg_obsolete-stamp() {
 
     package $@
 
@@ -275,5 +373,6 @@ EOF
     git commit -m "import stamp version $pkg_ver"    
     popd
 }
+
 
 

@@ -11,7 +11,7 @@ Devuan's git repository.
 # Requirements
 
 Tested on Debian and Ubuntu, this SDK requires to have Zsh installed,
-plus elinks, gnupg2 and curl.
+plus gnupg2 and curl.
 
 # Quick start
 
@@ -32,17 +32,17 @@ source sdk
 init
 ```
 
-This will take a while to download Debian's keyring and import it,
-then clone all Devuan repositories. The `source sdk` is in fact where
-one loads the sdk: the running shell *will become the interactive sdk
-console* providing command completion and online help. To exit the SDK
-one has to close the running shell, or the terminal.
+This will take a while to clone all Devuan repositories and download
+Debian's keyring. The `source sdk` is in fact where one loads the sdk:
+the running shell *will become the interactive sdk console* providing
+command completion and online help. To exit the SDK one has to close
+the running shell, or the terminal.
 
 Once `init` is done go into the `stage` directory and you'll see all
-the Devuan repositories will be there. One can work normally: commit
-and push (you need write permissions) or `format-patch`. Our
-continuous integration should be picking up from what is pushed in
-master.
+the Devuan repositories will be there. One can work normally with git:
+commit and push (you need write permissions) or format-patch to send
+us a patch. Our continuous integration should be picking up from what
+is pushed in master.
 
 Pretty easy no? but this is only the basic usage. SDK has functions to
 locally compile the packages into schroot of various architectures and
@@ -76,6 +76,7 @@ From inside devuan-sdk/ give the following commands:
 ```
 source sdk
 package nethack-console
+version latest
 package-import
 ```
 

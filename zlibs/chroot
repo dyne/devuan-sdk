@@ -20,28 +20,36 @@
 # this source code; if not, write to: Free Software Foundation, Inc.,
 # 675 Mass Ave, Cambridge, MA 02139, USA.
 
-chroot() {
+chroot arch() {
+    fn arch
 
-    cmd_line=(${=@})
-
-    if [[ "$1" = "" ]]; then
-        [[ "$chroot_arch" = "" ]] && {
-            print "Missing argument: arch"
+    case $1 in
+        i386|amd64) chroot_arch=$1 ;;
+        *)
+            warn "Chroot architecture not supported $1"
+            act -n "Existing chroots: "
+            schroot -l 2>/dev/null | awk -F: '
+/devuan/ {
+  gsub(/devuan-/,"",$2)
+  printf $2 " "
+}'
+            print >&2
             return 1
-        }
-    else
-        chroot_arch="$1"
-    fi
-    
-    mkdir -p chroot
+            ;;
+    esac
 
     notice "Chroot selected: $chroot_arch"
-
+    if [[ -r $sdk_path/chroot/$chroot_arch/etc/passwd ]]; then
+        act "ready for use (build or run chroot-enter)"
+    else
+        act "not existing yet (run chroot-create)"
+    fi
 }
 
 chroot-config() {
-
-    chroot $@
+    fn chroot-config
+    req=(chroot_arch)
+    reqck
 
     [[ -r /etc/schroot/chroot.d/devuan-$chroot_arch ]] && {
         warn "Chroot configuration already existing: /etc/schroot/chroot.d/devuan-$chroot_arch"
@@ -73,8 +81,10 @@ EOF
 }
 
 chroot-create() {
-
-    chroot-config $@
+    fn chroot-create
+    req=(chroot_arch)
+    freq=(chroot/$chroot_arch)
+    reqck
 
     [[ -r $sdk_path/chroot/$chroot_arch/usr/bin/zsh ]] && {
         warn "Chroot already existing: $sdk_path/chroot/$chroot_arch"
@@ -109,20 +119,20 @@ chroot-create() {
 }
 
 chroot-enter() {
-    [[ "$1" = "" ]] && {
-        notice "Specify which chroot to enter:"
-        schroot -l | awk -F: '/devuan/ { print $2 }'
-        return 0
-    }
+    fn chroot-enter
+    req=(chroot_arch)
+    freq=(chroot/$chroot_arch/etc/passwd)
+    reqck
 
-    if [[ -r $sdk_path/chroot/$chroot_arch/bin/zsh5 ]]; then
-        chroot_shell=/bin/zsh5
+    
+    if [[ -r $sdk_path/chroot/$chroot_arch/bin/zsh ]]; then
+        chroot_shell=/bin/zsh
     else
         warn "Zsh not found in chroot $chroot_arch"
         chroot_shell=/bin/bash
     fi
         
-    schroot -c $1 -u root -d /root -s $chroot_shell
-    return $?
+    schroot -c devuan-$chroot_arch -u root -d /root -s $chroot_shell
+
 }
 

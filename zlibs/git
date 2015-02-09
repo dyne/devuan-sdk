@@ -1,0 +1,92 @@
+#!/usr/bin/env zsh
+
+# Devuan SDK - staged source management
+
+# Copyright (C) 2015 Dyne.org Foundation
+#
+# Devuan SDK is designed, written and maintained by Denis Roio <jaromil@dyne.org>
+#
+# This source code is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This source code is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  Please refer
+# to the GNU Public License for more details.
+#
+# You should have received a copy of the GNU Public License along with
+# this source code; if not, write to: Free Software Foundation, Inc.,
+# 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+get_staged_name() {
+    fn get_staged_name
+    req=(q_name)
+    freq=(stage/$src_name/debian/control)
+    reqck
+
+    staged_name=`cat $sdk_path/stage/$repo_name/debian/control | awk '
+/^Source: / { print $2; exit }'`
+
+}
+
+get_staged_version() {
+    fn get_staged_version
+    req=(src_name)
+    freq=(stage/$src_name/debian/changelog)
+    reqck
+
+        staged_ver=`awk '
+/^'"$orig_name"'/ {
+  gsub(/\(|\)/,"", $2)
+  print $2
+  exit
+}
+' $sdk_path/stage/$src_name/debian/changelog`
+
+}
+   
+
+package-stage() {
+    fn package-stage
+    req=(src_name src_dest)
+    freq=(sources/$src_dest)
+    reqck
+
+    # already staged check if versions differ
+    [[ -r $sdk_path/stage/$src_name/debian/changelog ]] && {
+
+        get_staged_version
+
+        notice "Already staged: $src_name ($staged_ver)"
+        act "Remote: https://git.devuan.org/packages-base/${src_name}"
+
+        [[ "$staged_ver" = "$src_ver" ]] || {
+            notice "Creating branch for version: $src_ver"
+            pushd $sdk_path/stage/$src_name
+            git checkout -b v${src_ver}
+            rsync -raX $sdk_path/sources/$src_dest/* \
+                $sdk_path/stage/$src_name/
+            git add .
+            git commit -m "branched new version $src_ver"
+            popd
+        }
+        return 0
+    }
+    mkdir -p $sdk_path/stage/$src_name
+    rsync -raX $sdk_path/sources/$src_dest/* \
+        $sdk_path/stage/$src_name/
+    pushd $sdk_path/stage/$src_name
+    git init
+    git add .
+    git commit -m "Import from Debian $release/$section package $src_name-$src_ver"
+    git remote add origin git@git.devuan.org:packages-base/${src_name}
+    popd
+    notice "Stage successfull: stage/$src_name"
+    act "Remote: https://git.devuan.org/packages-base/${src_name}"
+
+    return 0
+
+}
