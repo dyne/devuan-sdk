@@ -1,0 +1,255 @@
+#!/usr/bin/env zsh
+
+# Devuan SDK - release management
+
+# Copyright (C) 2015 Dyne.org Foundation
+#
+# Devuan SDK is designed, written and maintained by Denis Roio <jaromil@dyne.org>
+#
+# This source code is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This source code is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  Please refer
+# to the GNU Public License for more details.
+#
+# You should have received a copy of the GNU Public License along with
+# this source code; if not, write to: Free Software Foundation, Inc.,
+# 675 Mass Ave, Cambridge, MA 02139, USA.
+
+release() {
+    if [[ "$1" = "" ]]; then
+        [[ "$iso_arch" = "" ]] && {
+            # inherit name from current chroot
+            if [[ "$chroot_arch" = "" ]]; then
+                print "Missing arguments: iso_arch"
+                return 1
+            else
+                iso_arch=$chroot_arch
+            fi
+        }
+    else
+        iso_arch=$1
+    fi
+    [[ -d $sdk_path/chroot/$iso_arch ]] || {
+        warn "Repository not found: $sdk_path/chroot/$iso_arch"
+        return 1
+    }
+
+    notice "Releasing iso for $iso_arch"
+}
+
+release-config() {
+
+    release $@
+
+    root=$sdk_path/chroot/$iso_arch
+
+    sudo mkdir -p $root/mirrors/devuan
+
+    tmp=`mktemp`
+    cat <<EOF >> $tmp
+# Configuration file for the apt-move script.
+# The sites in ``/etc/apt/sources.list'' that you wish to mirror.
+APTSITES="/all/"
+# The absolute path to the top of your local mirror.
+# This MUST appear as the first entry of your sources.list if you use
+# sync or mirror.
+LOCALDIR=/mirrors/devuan
+# The default distribution (see the apt-move(8) manpage for details) 
+DIST=$release
+# The package types you want to mirror. 
+# Possible values are: binary, source, and both (use only one).
+PKGTYPE=binary
+FILECACHE=/var/cache/apt/archives
+LISTSTATE=/var/lib/apt/lists
+
+# Do you want apt-move to delete obsolete files from your mirror?
+DELETE=no
+# Maximum percentage of files to delete during a normal run.
+MAXDELETE=20
+# Set this to yes if you wish to keep the originals for move/movefile.
+COPYONLY=no
+# Set this to 'none gzip' to get uncompressed Packages/Sources files.
+PKGCOMP='bzip2 gzip'
+# Set this to yes to make apt-move generate Contents files.
+CONTENTS=no
+# Set this to key name to be used for signing Release files.
+GPGKEY=
+EOF
+    sudo mv $tmp $root/etc/apt-move.conf
+
+    tmp=`mktemp`   
+    cat <<EOF >> $tmp
+# I make my own local Packages file
+Packages*
+# this is HUGE
+**/tetex-src_*
+# I'm not a ham...
+hamradio/
+# I'm refusing all kernel stuff except for 2.0.36 and 2.2.10
+**/kernel-image-2.0.35_*
+**/kernel-headers-2.0.35_*
+**/kernel-source-2.0.3*
+**/kernel-doc-2.0.35_*
+**/kernel-image-2.1.*
+**/kernel-headers-2.1.*
+**/kernel-source-2.1.*
+**/kernel-doc-2.1.*
+**/kernel-image-2.2.[1579]_*
+**/kernel-headers-2.2.[1579]_*
+**/kernel-source-2.2.[1579]_*
+**/kernel-doc-2.2.[1579]_*
+**/kernel-patch-*
+**/pcmcia-modules-2.0.35_*
+**/pcmcia-modules-2.1.*
+**/pcmcia-modules-2.2.[1579]_*
+# lots of foreign language stuff I don't need
+*kanji*
+*-es_*
+*-fr_*
+*-hr_*
+*-it_*
+*-ja_*
+*-ja-dev_*
+*-ko_*
+*-pl_*
+*-pl-dev_*
+*-pl-html_*
+*-sv_*
+*-zh_*
+*-de_*
+*-de-dev_*
+*-fi_*
+*-hu_*
+*japanese*
+*arabic*
+*asian*
+*chinese*
+*european*
+*brazilian*
+*british*
+*czech*
+*danish*
+*dutch*
+*french*
+*german*
+*italian*
+*norwegian*
+*polish*
+*portuguese*
+*spanish*
+*swedish*
+*cyrillic*
+*greek*
+*wnn*
+*canna*
+*big5*
+*-cjk_*
+**/kakasi-dic*
+# magazines
+**/pj-9*
+**/lg-base*
+**/lg-issue*
+# devel type stuff I don't need
+*m68k*
+*-dbg_*
+*-pic_*
+*-prof_*
+**/binutils-multiarch*
+# Packages excluded because I don't have room
+**/ddd_*
+*prolog*
+**/icon[-ctx]*
+**/lapac-d*
+**/mercury_*
+**/mico-*
+**/pact[-_]*
+**/rscheme_*
+**/tabi-tsi_*
+**/wordnet*
+**/a4c.*
+*-static_*
+**/anarchism*
+**/9fonts*
+**/ada-rm_*
+**/aegis*
+**/asiya*
+**/bb_*
+**/bible-kjv*
+**/bigloo[-_]*
+**/bioperl_*
+**/clips[-_]*
+**/crossfire*
+**/cvs[-_]*
+**/doc-rfc_*
+**/docbook*
+**/dstool*
+**/elisp*
+**/epic4[-_]*
+**/epic_3*
+**/fidogate*
+**/fml_*
+**/gimp-manual*
+**/hbf-*
+**/libace*
+**/libsane*
+**/sane*
+**/xsane*
+**/ncbi-tools*
+**/scalapack*
+**/slatec[-_]*
+**/sml-nj*
+**/tochnog-doc*
+**/xfntil2*
+*-biznet-*
+*-altdev_*
+**/xbooks*
+*emacs*
+*quake*
+**/picon*
+**/timidity*
+**/abuse*
+**/scilab*
+**/networker*
+**/gnat*
+**/libroxen*
+**/roxen*
+EOF
+    sudo mv $tmp $root/mirrors/devuan/.exclude
+
+    # add /mirrors/devuan to sources.list
+    TRAPZERR() { }
+    grep 'mirrors/devuan' $root/etc/apt/sources.list > /dev/null
+    [[ $? = 0 ]] || {
+        tmp=`mktemp`
+        cat <<EOF >> $tmp
+deb file:///mirrors/devuan/ / 
+EOF
+        cat $root/etc/apt/sources.list >> $tmp
+        sudo mv $tmp $root/etc/apt/sources.list
+    }
+    TRAPZERR() { 
+        error "Error reported, operation aborted."
+        return 1
+    }
+
+    notice "Release mirror configured"
+}
+
+release-mirror() {
+
+    release $@
+
+    notice "Starting to mirror release $iso_arch"
+
+    schroot -c devuan-$iso_arch -u root \
+        -- apt-move get # test run
+
+    schroot -c devuan-$iso_arch -u root \
+        -- apt-move mirror # test run
+
+}

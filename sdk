@@ -30,6 +30,7 @@ source zlibs/helpers
 source zlibs/package
 source zlibs/chroot
 source zlibs/build
+source zlibs/release
 source zlibs/messaging
 
 typeset -aU vars
@@ -57,6 +58,9 @@ vars+=(chroot_arch chroot_shell)
 
 # build variables
 vars+=(repo_name repo_ver repo_deps build_ver orig_name)
+
+# release variables
+vars+=(iso_arch)
 
 # initialize globals
 for v in $vars; do
