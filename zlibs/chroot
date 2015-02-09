@@ -84,8 +84,8 @@ chroot-create() {
     notice "First stage debootstrap"
 
     sudo \
-        debootstrap --components=main \
-        --variant=buildd \
+        debootstrap --components=$chroot_components \
+        --variant=$chroot_variant \
         --verbose \
         --foreign --arch $chroot_arch \
         --include=$chroot_include \

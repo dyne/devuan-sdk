@@ -40,7 +40,7 @@ arrs=()
 
 # config variables
 vars+=(mirror release section)
-vars+=(chroot_include chroot_exclude)
+vars+=(chroot_include chroot_exclude chroot_variant chroot_components )
 vars+=(debug)
 
 # global variables
@@ -73,7 +73,7 @@ source config
 # we assume source sdk is always run from the source dir
 sdk_path=`pwd`
 
-status() {
+dump status() {
     act "Devuan SDK status dump:"
     for v in $vars; do
         print "$v \t ${(P)v}"
