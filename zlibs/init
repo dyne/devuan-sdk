@@ -40,7 +40,7 @@ init-repos() {
     fn init-repos
 
     url="https://git.devuan.org/groups"
-    git="git@git.devuan.org:packages-base"
+    git="https://git.devuan.org/packages-base"
     print "Updating list of Devuan packages"
     repos=`curl -s https://git.devuan.org/groups/packages-base | awk '/a class=.*project/ { print $3}' | cut -d'"' -f2`
     mkdir -p $sdk_path/stage
