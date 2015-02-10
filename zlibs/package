@@ -126,8 +126,7 @@ BEGIN { found=0 }
 
 get_src_dest() {
     # calculate destination directory from tar contents
-    t=`tarcmd sources/${src_orig}`
-    src_dest=`tar tvf$t sources/$src_orig | awk '
+    src_dest=`tar tvf sources/$src_orig | awk '
 { print $6; exit }
 '`
     src_dest=${src_dest%*/}
@@ -263,23 +262,23 @@ BEGIN { found=0 }
 
 package-unpack() {
     fn package-unpack
-    req=(src_orig src_debian)
-    freq=(sources/$src_orig sources/$src_debian)
+    req=(src_orig)
+    freq=(sources/$src_orig)
     reqck
 
-    act "Decompressing orig source file"
-    t=`tarcmd ${src_orig}`
-    tar x${t}f sources/${src_orig} -C sources
+    act "Decompressing source file: $src_orig"
+    tar xf sources/${src_orig} -C sources
 
     [[ -d sources/${src_dest} ]] || {
         warn "Destination, not found: sources/${src_dest}"
         return 1
     }
 
-    t=`tarcmd ${src_debian}`
-    act "Decompressing debian source file"
-    tar x${t}f sources/${src_debian} -C sources/${src_dest}/
-
+    [[ -f sources/${src_debian} ]] && {
+        act "Decompressing debian source file"
+        tar xf sources/${src_debian} -C sources/${src_dest}/
+    }
+    return 0
 }
 
 # wrapper to include local gitconfig    

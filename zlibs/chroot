@@ -86,6 +86,8 @@ chroot-create() {
     freq=(chroot/$chroot_arch)
     reqck
 
+    chroot-config
+
     [[ -r $sdk_path/chroot/$chroot_arch/usr/bin/zsh ]] && {
         warn "Chroot already existing: $sdk_path/chroot/$chroot_arch"
         return 0
