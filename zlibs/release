@@ -20,33 +20,16 @@
 # this source code; if not, write to: Free Software Foundation, Inc.,
 # 675 Mass Ave, Cambridge, MA 02139, USA.
 
-release() {
-    if [[ "$1" = "" ]]; then
-        [[ "$iso_arch" = "" ]] && {
-            # inherit name from current chroot
-            if [[ "$chroot_arch" = "" ]]; then
-                print "Missing arguments: iso_arch"
-                return 1
-            else
-                iso_arch=$chroot_arch
-            fi
-        }
-    else
-        iso_arch=$1
-    fi
-    [[ -d $sdk_path/chroot/$iso_arch ]] || {
-        warn "Repository not found: $sdk_path/chroot/$iso_arch"
-        return 1
-    }
-
-    notice "Releasing iso for $iso_arch"
-}
 
 release-config() {
+    fn release-config
+    req=(chroot_arch)
+    freq=(chroot/$chroot_arch)
+    reqck
 
     release $@
 
-    root=$sdk_path/chroot/$iso_arch
+    root=$sdk_path/chroot/$chroot_arch
 
     sudo mkdir -p $root/mirrors/devuan
 
@@ -84,7 +67,37 @@ EOF
 
     tmp=`mktemp`   
     cat <<EOF >> $tmp
-# I make my own local Packages file
+# Fine tuned on Debian 8.0
+**/flightgear*
+**/freefoam*
+**/freedroidrpg*
+**/festvox-ru*
+**/flare-game*
+**/fillets-ng-data*
+**/freeorion*
+**/fluid-soundfont*
+**/gnome-getting-started-docs*
+**/triplea*
+**/torcs*
+**/texlive-extra*
+**/texlive-lang*
+**/tuxpaing-stamps*
+**/nexuiz-data*
+**/ns3*
+**/megaglest-data*
+**/metastudent-data*
+**/mia*
+**/mrpt*
+**/marsshooter*
+**/wine-*
+**/wesnoth-*
+**/widelands*
+**/supertuxkart*
+**/smc*
+**/colobot*
+**/berusky2*
+
+# Will have own local Packages file
 Packages*
 # this is HUGE
 **/tetex-src_*
@@ -160,7 +173,7 @@ hamradio/
 *-pic_*
 *-prof_*
 **/binutils-multiarch*
-# Packages excluded because I don't have room
+# Packages excluded to save room
 **/ddd_*
 *prolog*
 **/icon[-ctx]*
@@ -173,7 +186,6 @@ hamradio/
 **/wordnet*
 **/a4c.*
 *-static_*
-**/anarchism*
 **/9fonts*
 **/ada-rm_*
 **/aegis*
@@ -188,7 +200,6 @@ hamradio/
 **/doc-rfc_*
 **/docbook*
 **/dstool*
-**/elisp*
 **/epic4[-_]*
 **/epic_3*
 **/fidogate*
@@ -208,7 +219,6 @@ hamradio/
 *-biznet-*
 *-altdev_*
 **/xbooks*
-*emacs*
 *quake*
 **/picon*
 **/timidity*
@@ -241,15 +251,17 @@ EOF
 }
 
 release-mirror() {
-
-    release $@
+    fn release-config
+    req=(chroot_arch)
+    freq=(chroot/$chroot_arch/mirrors/devuan/.exclude)
+    reqck
 
     notice "Starting to mirror release $iso_arch"
 
-    schroot -c devuan-$iso_arch -u root \
-        -- apt-move get # test run
+    schroot -c devuan-$chroot_arch -u root \
+        -- apt-move get
 
-    schroot -c devuan-$iso_arch -u root \
-        -- apt-move mirror # test run
+    schroot -c devuan-$chroot_arch -u root \
+        -- apt-move mirror
 
 }
