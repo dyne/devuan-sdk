@@ -78,7 +78,8 @@ source zlibs/package
 source zlibs/chroot
 source zlibs/git
 source zlibs/build
-source zlibs/release
+# source zlibs/mirror
+source zlibs/iso
 source zlibs/messaging
 
 
@@ -96,10 +97,11 @@ dump status() {
 TRAPDEBUG() {
     RPROMPT="${repo_name:-$src_name} ${repo_ver:-$src_ver} ${chroot_arch}"
 }
-TRAPZERR() { 
-    error "$cur_fun() :: error reported, operation aborted."
+zerr() { 
+    error "${cur_fun}() :: error reported, operation aborted."
     return 1
 }
+TRAPZERR() { zerr }
 
 if [[ $sdk_loaded = 1 ]]; then
     act "Devuan SDK reloaded"

@@ -88,7 +88,7 @@ chroot-create() {
 
     chroot-config
 
-    [[ -r $sdk_path/chroot/$chroot_arch/usr/bin/zsh ]] && {
+    [[ -r $sdk_path/chroot/$chroot_arch/etc/passwd ]] && {
         warn "Chroot already existing: $sdk_path/chroot/$chroot_arch"
         return 0
     }
@@ -120,6 +120,16 @@ chroot-create() {
         apt-get update
 }
 
+chdo() {
+    fn chdo
+    req=(chroot_arch)
+    freq=(chroot/$chroot_arch/etc/passwd)
+    reqck
+
+    schroot -c devuan-$chroot_arch \
+        -u root -d /root -- $@
+}
+    
 chroot-enter() {
     fn chroot-enter
     req=(chroot_arch)
@@ -127,14 +137,73 @@ chroot-enter() {
     reqck
 
     
-    if [[ -r $sdk_path/chroot/$chroot_arch/bin/zsh ]]; then
-        chroot_shell=/bin/zsh
-    else
-        warn "Zsh not found in chroot $chroot_arch"
+    # if [[ -r $sdk_path/chroot/$chroot_arch/bin/zsh ]]; then
+    #     chroot_shell=/bin/zsh
+    # else
+    #     warn "Zsh not found in chroot $chroot_arch"
         chroot_shell=/bin/bash
-    fi
+    # fi
         
     schroot -c devuan-$chroot_arch -u root -d /root -s $chroot_shell
 
 }
+
+
+serve-local-repo() {
+    fn serve-local-repo
+    req=(chroot_arch)
+    freq=(chroot/$chroot_arch/etc/apt/sources.list)
+    ckreq
+
+    tmp=`mktemp`
+    root=$sdk_path/chroot/$chroot_arch
+    case "$1" in
+        on|yes)
+
+            # update local repository
+            pushd $sdk_path/builds
+            rm -f Packages.xz
+            dpkg-scanpackages . | awk '
+/Filename:/ { gsub(/\.\//, "", $2); print $0; next }
+{ print $0 }' | xz -9 > Packages.xz
+            popd
+
+            TRAPZERR() { }
+            grep "localhost:12345" \
+                $root/etc/apt/sources.list \
+                > /dev/null
+            # if not already present, add to top
+            [[ $? = 0 ]] || {
+                cat <<EOF >> $tmp
+deb http://localhost:12345/ /
+EOF
+                cat $root/etc/apt/sources.list >> $tmp
+                sudo mv $tmp $root/etc/apt/sources.list
+            }
+            TRAPZERR() { zerr }
+
+            mini-httpd -u $USER -p 12345 -d $sdk_path/builds
+
+            notice "Local builds available in chroot/$chroot_arch"
+
+            ;;
+        off|no)
+            cat $root/etc/apt/sources.list \
+                | grep -v "localhost:12345" >> $tmp
+            sudo mv $tmp $root/etc/apt/sources.list
+
+            killall mini-httpd
+
+            notice "Local builds no more available in chroot/$chroot_arch"
+
+            ;;
+        *)
+            warn "usage: server-local-repo [ on | off ]"
+            ;;
+    esac
+    rm -f $tmp
+
+
+}
+
 

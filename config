@@ -8,9 +8,12 @@ mirror=http://ftp.debian.org/debian/
 release=jessie
 section=main
 
+# TODO change with final release of Debian when ready
+installer=http://gemmei.acc.umu.se/cdimage/jessie_di_rc1
+# amd64/iso-cd/debian-jessie-DI-rc1-amd64-netinst.iso
 
 # deboostrap settings for chroots
-chroot_include=bzip2,zsh,vim-nox,less,dialog,sysvinit,debian-keyring,apt-utils
+chroot_include=bzip2,zsh,vim-nox,less,dialog,sysvinit,debian-keyring,apt-utils,genisoimage
 chroot_exclude=systemd,systemd-sysv,libsystemd0
 # safe to leave untouched
 chroot_variant=buildd

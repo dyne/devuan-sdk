@@ -178,15 +178,6 @@ build-finish() {
 
 }
 
-build-index() {
-    # update local repository
-    pushd $sdk_path/builds
-    rm -f Packages.xz
-    dpkg-scanpackages . | awk '
-/Filename:/ { gsub(/\.\//, "", $2); print $0; next }
-{ print $0 }' | xz -9 > Packages.xz
-    popd
-}
 
 build-sign() {
     fn build-sign

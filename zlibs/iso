@@ -1,0 +1,203 @@
+#!/usr/bin/env zsh
+
+# Devuan SDK - iso image management
+
+# Copyright (C) 2015 Dyne.org Foundation
+#
+# Devuan SDK is designed, written and maintained by Denis Roio <jaromil@dyne.org>
+#
+# This source code is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This source code is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  Please refer
+# to the GNU Public License for more details.
+#
+# You should have received a copy of the GNU Public License along with
+# this source code; if not, write to: Free Software Foundation, Inc.,
+# 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+iso-import() {
+    fn geniso-prepare
+    req=(release installer chroot_arch)
+    ckreq
+
+    notice "Downloading Debian netinst iso"
+    act "$installer"
+    act "$release $chroot_arch"
+
+    # TODO change with final release of Debian when ready
+    debian_iso_url=$installer/$chroot_arch/iso-cd/debian-$release-DI-rc1-$chroot_arch-netinst.iso
+
+    root=$sdk_path/chroot/$chroot_arch
+
+    src=$root/usr/src
+
+    sudo \
+        mkdir -p $src/debian-iso/$release-$chroot_arch-netinst
+
+    sudo \
+        test -r $src/debian-iso/$release-$chroot_arch-netinst.iso || {
+        chdo \
+            curl $debian_iso_url \
+            -o $src/debian-iso/$release-$chroot_arch-netinst.iso
+    }
+
+    sudo mkdir -p $src/devuan-iso/$release-$chroot_arch-netinst
+
+    sudo mount -o loop $root/usr/src/debian-iso/$release-$chroot_arch-netinst.iso \
+        $root/usr/src/debian-iso/$release-$chroot_arch-netinst
+
+    sudo rsync -rX $root/usr/src/debian-iso/$release-$chroot_arch-netinst/* \
+        $root/usr/src/devuan-iso/$release-$chroot_arch-netinst/
+
+    sudo umount $root/usr/src/debian-iso/$release-$chroot_arch-netinst
+
+}
+
+iso-prepare() {
+    fn iso-prepare
+    req=(release chroot_arch)
+    root=$sdk_path/chroot/$chroot_arch
+    iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
+    freq=($root/$iso/README.html)
+    ckreq
+
+
+    sudo chmod u+w $root/$iso
+
+    tmp=`mktemp`
+    cat <<EOF >> $tmp
+systemd
+systemd-sysv
+libsystemd0
+EOF
+    sudo mv $tmp $root/$iso/.disk/base_exclude
+
+    tmp=`mktemp`
+    cat <<EOF >> $tmp
+bzip2
+zsh
+vim-nox
+less
+dialog
+sysvinit
+EOF
+    sudo mv $tmp $root/$iso/.disk/base_include
+
+    tmp=`mktemp`
+    cat <<EOF >> $tmp
+Dir {
+   ArchiveDir "$release-$chroot_arch-netinst";
+   OverrideDir "indices";
+   CacheDir "indices";
+};
+
+TreeDefault {
+   Directory "pool/";
+};
+
+BinDirectory "pool/main" {
+   Packages "dists/$release/main/debian-installer/binary-$chroot_arch/Packages";
+   BinOverride "override";
+#   ExtraOverride "override.extra";
+};
+
+Default {
+   Packages {
+       Extensions ".udeb";
+   };
+};
+EOF
+    sudo mv $tmp $root/usr/src/devuan-iso/config-udeb
+
+    tmp=`mktemp`
+    cat <<EOF >> $tmp
+Dir {
+   ArchiveDir "$release-$chroot_arch-netinst";
+   OverrideDir "indices";
+   CacheDir "indices";
+};
+
+TreeDefault {
+   Directory "pool/";
+};
+BinDirectory "pool/main" {
+   Packages "dists/$release/main/binary-$chroot_arch/Packages";
+   BinOverride "override";
+#   ExtraOverride "override.extra";
+};
+
+Default {
+   Packages {
+       Extensions ".deb";
+   };
+EOF
+
+    sudo mv $tmp $root/usr/src/devuan-iso/config-deb
+
+    sudo mkdir -p $root/usr/src/devuan-iso/indices
+    tmp=`mktemp`
+    curl $mirror/indices/override.$release.main.gz \
+        | gunzip >> $tmp 
+    sudo mv $tmp $root/usr/src/devuan-iso/indices/override
+
+    schroot -c devuan-$chroot_arch \
+        -u root -d $root/usr/src/devuan-iso -- \
+        apt-ftparchive generate config-udeb
+
+    schroot -c devuan-$chroot_arch \
+        -u root -d $root/usr/src/devuan-iso -- \
+        apt-ftparchive generate config-deb
+
+    tmp=`mktemp`
+    cat <<EOF >> $tmp
+APT::FTPArchive::Release::Codename "$release";
+APT::FTPArchive::Release::Origin "Devuan";
+APT::FTPArchive::Release::Components "main";
+APT::FTPArchive::Release::Label "Devuan";
+APT::FTPArchive::Release::Architectures "$chroot_arch";
+APT::FTPArchive::Release::Suite "testing";
+EOF
+    sudo mv $tmp $root/usr/src/devuan-iso/config-rel
+
+    tmp=`mktemp`
+    schroot -c devuan-$chroot_arch \
+        -u root -d $root/usr/src/devuan-iso -- \
+        apt-ftparchive -c config-rel release \
+        $release-$chroot_arch-netinst/dists/$release \
+        >> $tmp
+
+    sudo mv $tmp $root/$iso/dists/$release/Release
+}
+
+iso-make() {
+    fn iso-make
+    req=(chroot_arch release)
+    root=$sdk_path/chroot/$chroot_arch
+    iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
+    freq=($root/$iso/pool)
+    ckreq
+
+    schroot -c devuan-$chroot_arch \
+        -u root -d $root/usr/src/devuan-iso -- \
+        genisoimage -o devuan-$release-$chroot_arch.iso \
+        -r -J -no-emul-boot -boot-load-size 4 \
+        -boot-info-table -b isolinux/isolinux.bin -c isolinux/boot.cat \
+        ./$release-$chroot_arch-netinst
+
+        # xorriso -as mkisofs -r \
+        # -checksum_algorithm_iso md5,sha1,sha256,sha512 \
+        # -V 'Devuan $release $chroot_arch' \
+        # -o $release-$chroot_arch-netinst.iso \
+        # -J -isohybrid-mbr syslinux/usr/lib/ISOLINUX/isohdpfx.bin \
+        # -partition_offset 16 -J -joliet-long \
+        # -b isolinux/isolinux.bin -c isolinux/boot.cat \
+        # -no-emul-boot -boot-load-size 4 -boot-info-table boot1 \
+        # $release-$chroot_arch-netinst
+
+}

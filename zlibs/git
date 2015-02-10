@@ -55,6 +55,8 @@ package-stage() {
     freq=(sources/$src_dest)
     reqck
 
+    package-unpack
+
     # already staged check if versions differ
     [[ -r $sdk_path/stage/$src_name/debian/changelog ]] && {
 
