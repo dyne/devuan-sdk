@@ -64,7 +64,7 @@ iso-prepare() {
     req=(release chroot_arch)
     root=$sdk_path/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
-    freq=($root/$iso/README.html)
+    freq=(chroot/$chroot_arch/$iso/README.html)
     ckreq
 
 
@@ -142,8 +142,12 @@ EOF
 
     sudo mkdir -p $root/usr/src/devuan-iso/indices
     tmp=`mktemp`
+
+    # TODO
+    # here we grep out systemd from the indices/override this may be a
+    # bit too aggressive and it might be better to do it by hand
     curl $mirror/indices/override.$release.main.gz \
-        | gunzip >> $tmp 
+        | gunzip | grep -v systemd >> $tmp 
     sudo mv $tmp $root/usr/src/devuan-iso/indices/override
 
     schroot -c devuan-$chroot_arch \
@@ -180,7 +184,7 @@ iso-make() {
     req=(chroot_arch release)
     root=$sdk_path/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
-    freq=($root/$iso/pool)
+    freq=(chroot/$chroot_arch/$iso/README.html)
     ckreq
 
     schroot -c devuan-$chroot_arch \

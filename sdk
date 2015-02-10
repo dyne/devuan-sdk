@@ -101,7 +101,7 @@ zerr() {
     error "${cur_fun}() :: error reported, operation aborted."
     return 1
 }
-TRAPZERR() { zerr }
+TRAPZERR() { zerr; return $? }
 
 if [[ $sdk_loaded = 1 ]]; then
     act "Devuan SDK reloaded"
