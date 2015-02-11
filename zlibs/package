@@ -104,6 +104,8 @@ version() {
             fi
         done
 
+        # TODO check on package or version not found
+
     elif [[ "$q_ver" = "list" ]]; then
 
         #### Debian website parsing
@@ -118,12 +120,12 @@ BEGIN { found=0 }
     else
 
         act "$src_name source version set to $q_ver"        
-        src_ver=$q_ver
 
         package-query-debian $q_ver
-        # TODO detect automatically source filenames: we could render
-        # them, but we don't know which compression was used for them
-        # (tar.* extension)
+
+        orig_ver=${src_ver%-*}
+
+        # TODO check on package or version not found
 
     fi
     RPROMPT="${repo_name:-$src_name} ${repo_ver:-$src_ver} ${chroot_arch}"
@@ -180,7 +182,6 @@ package() {
         src_ver=$staged_ver
     }
 
-    orig_ver=${src_ver%-*}
 
     return 0
 

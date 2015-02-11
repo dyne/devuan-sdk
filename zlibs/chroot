@@ -179,6 +179,7 @@ deb http://localhost:12345/ /
 EOF
                 cat $root/etc/apt/sources.list >> $tmp
                 sudo mv $tmp $root/etc/apt/sources.list
+                chdo apt-get update
             }
             TRAPZERR() { zerr }
 
@@ -191,6 +192,8 @@ EOF
             cat $root/etc/apt/sources.list \
                 | grep -v "localhost:12345" >> $tmp
             sudo mv $tmp $root/etc/apt/sources.list
+
+            chdo apt-get update
 
             killall mini-httpd
 

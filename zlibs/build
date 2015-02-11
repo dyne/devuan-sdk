@@ -67,6 +67,7 @@ BEGIN { found=0 }
     TRAPZERR() { }
 
     for d in $repo_deps; do
+        act "Installing dep: $d"
         schroot -c devuan-$chroot_arch -u root \
             -d /usr/src \
             -- apt-get --force-yes -y install $d

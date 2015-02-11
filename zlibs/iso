@@ -109,13 +109,17 @@ iso-local-packages() {
         pn=`basename $pkg`
         pfx=${pn[(ws:_:)1]}
         sfx=${pn[(ws:_:)3]}
+
+        sn=`dirname $pkg`
+        sn=${sn##*/}
+
         func "replacing pattern: ${pfx}_*_${sfx}"
         # remove old packages
         found=0
         olds=`find $root/$iso/pool -type f -name "${pfx}_*_${sfx}"`
         for o in ${(f)olds}; do
 #            [[ "$o" =~ "devuan" ]] # TODO
-                print - "- `basename $o`"
+                print - "- $sn :: `basename $o`"
                 sudo mv $o $root/usr/src/devuan-iso/replaced
                 found=1
  
@@ -123,7 +127,7 @@ iso-local-packages() {
 
         # copy new in place
         [[ $found = 1 ]] && {
-            print - "+ $pn"
+            print - "+ $sn :: $pn"
             sudo cp $pkg $root/$iso/pool/main/devuan/
         }
 
