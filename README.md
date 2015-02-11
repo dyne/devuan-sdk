@@ -39,12 +39,36 @@ command completion and online help. To exit the SDK one has to close
 the running shell, or the terminal.
 
 Once `init` is done go into the `stage` directory and you'll see all
-the Devuan repositories will be there. One can work normally with git:
-commit and push (you need write permissions) or format-patch to send
-us a patch. Our continuous integration should be picking up from what
-is pushed in master.
+the Devuan repositories will be there.
 
-Pretty easy no? but this is only the basic usage. SDK has functions to
+To import a new package (lets pick hasciicam):
+
+```
+package hasciicam
+package-import
+package-verify
+package-stage
+```
+
+Then hasciicam will be in stage/ and checked into git. New versions
+will be checked in as branches. To build it just launch `build`.
+
+On the other hand, to burn an iso:
+
+```
+chroot i386
+chroot-create
+auto-iso
+```
+
+And after that, to burn a new one with hasciicam inside:
+```
+iso-add hasciicam
+iso-prepare
+iso-make
+```
+
+Pretty easy no? This is the basic usage. SDK has also functions to
 locally compile the packages into schroot of various architectures and
 even serve them locally as a repository over http, to facilitate local
 testing.

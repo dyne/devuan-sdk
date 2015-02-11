@@ -32,6 +32,23 @@ auto-iso() {
     iso-make
 }
 
+iso-add() {
+    fn iso-add
+    req=(chroot_arch src_name src_ver)
+    q_name=$1
+    pkg=${q_name}_${src_ver}_${chroot_arch}.deb
+    iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
+    freq=(builds/$src_name/${q_name}_${src_ver}_${chroot_arch}.deb
+        chroot/$chroot_arch/$iso/README.html)
+    ckreq
+
+    sudo cp -v builds/$src_name/${q_name}_${src_ver}_${chroot_arch}.deb \
+        chroot/$chroot_arch/$iso/pool/main/devuan
+
+}
+    
+    
+
 iso-import() {
     fn iso-import
     req=(release installer chroot_arch)
