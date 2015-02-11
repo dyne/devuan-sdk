@@ -34,7 +34,13 @@ build() {
 
     build-deps
 
+    build-clean
+
     build-sync
+
+    build-pack-orig
+
+    build-pack-debian
 
     build-start
 
@@ -91,18 +97,20 @@ BEGIN { found=0 }
     }
 }
 
-build-sync() {
-    fn build-sync
+build-clean() {
+    fn build-clean
     req=(chroot_arch src_name src_ver orig_ver)
     freq=(stage/$src_name/debian/control
         chroot/$chroot_arch/etc/passwd)
     ckreq
 
-    notice "Refresh source in chroot /usr/src/$src_name"
+    notice "Clean source in chroot /usr/src/$src_name"
     sudo \
         rm -rf $sdk_path/chroot/$chroot_arch/usr/src/$src_name
     sudo \
         mkdir -p $sdk_path/chroot/$chroot_arch/usr/src/$src_name
+
+    orig_ver=${src_ver%-*}
 
     act "Sync repo into chroot"
     sudo \
@@ -110,12 +118,49 @@ build-sync() {
         $sdk_path/stage/$src_name/* \
         $sdk_path/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver}
 
+}
+
+build-sync() {
+    fn build-sync
+    req=(chroot_arch src_name src_ver orig_ver)
+    freq=(stage/$src_name/debian/control
+        chroot/$chroot_arch/etc/passwd)
+    ckreq
+
+    orig_ver=${src_ver%-*}
+
+    act "Sync repo into chroot"
+    sudo \
+        rsync -a --exclude='.git/' \
+        $sdk_path/stage/$src_name/* \
+        $sdk_path/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver}
+
+}
+
+build-pack-orig() {
+    fn build-pack-orig
+    req=(chroot_arch src_name src_ver)
+    freq=(stage/$src_name/debian/control
+        chroot/$chroot_arch/etc/passwd)
+    ckreq
+    orig_ver=${src_ver%-*}
+
 
     act "Pack orig tarball in chroot"
     schroot -c devuan-$chroot_arch -u root \
         -d $sdk_path/chroot/$chroot_arch/usr/src/ -- \
         tar cfJ ${src_name}_${orig_ver}.orig.tar.xz \
         ${src_name}-${orig_ver}
+
+}
+
+build-pack-debian() {
+    fn build-pack-debian
+    req=(chroot_arch src_name src_ver)
+    freq=(stage/$src_name/debian/control
+        chroot/$chroot_arch/etc/passwd)
+    ckreq
+    orig_ver=${src_ver%-*}
 
     act "Pack debian tarball in chroot"
     schroot -c devuan-$chroot_arch -u root \
@@ -173,11 +218,11 @@ build-finish() {
         if [[ "$b" =~ "-udeb" ]]; then
             sudo \
                 mv $sdk_path/$src/${b}_${src_ver}_${arch}.udeb \
-                builds/$src_name
+                $sdk_path/builds/$src_name
         else # generic debs
             sudo \
                 mv $sdk_path/$src/${b}_${src_ver}_${arch}.deb \
-                builds/$src_name
+                $sdk_path/builds/$src_name
         fi
     done
 
@@ -188,7 +233,7 @@ build-finish() {
         $sdk_path/$src/${src_name}_${src_ver}.dsc \
         $sdk_path/$src/${src_name}_${src_ver}_${chroot_arch}.changes \
         $sdk_path/$src/${src_name}_${orig_ver}.orig.tar.xz \
-        builds/$src_name
+        $sdk_path/builds/$src_name
 
 }
 
@@ -201,7 +246,7 @@ build-sign() {
 
     notice "Signing: $src_name $src_ver $chroot_arch"
 
-    debsign builds/$src_name/${src_name}_${src_ver}_${chroot_arch}.changes
+    debsign $sdk_path/builds/$src_name/${src_name}_${src_ver}_${chroot_arch}.changes
 
 }
 

@@ -163,7 +163,7 @@ package() {
 
     q_name=$1
 
-    [[ -r stage/$q_name/debian/changelog ]] && {
+    [[ -r $sdk_path/stage/$q_name/debian/changelog ]] && {
         src_name=$q_name
         get_staged_version
         act "source already staged at version $staged_ver"
@@ -172,17 +172,17 @@ package() {
         return 0
     }
 
-    package-query-debian $q_name
+    package-query-debian
     # at this point we know the src_name
 
     notice "Source selected: $src_name"
 
-    [[ -r sources/$src_dsc ]] && {
+    [[ -r $sdk_path/sources/$src_dsc ]] && {
         act "source package already downloaded"
         get_src_dest
     }
 
-    [[ -r stage/$src_name/debian/changelog ]] && {
+    [[ -r $sdk_path/stage/$src_name/debian/changelog ]] && {
         get_staged_version
         act "source already staged at version $staged_ver"
         src_ver=$staged_ver
@@ -213,11 +213,11 @@ package-import() {
     for s in $src_files; do
 
         func "Source file: $s"
-        if [[ -r sources/${s} ]]; then
+        if [[ -r $sdk_path/sources/${s} ]]; then
             func "file found already downloaded: sources/$s"
             func "`file sources/$s`"
         else
-            curl ${source_url}/$s -o sources/$s
+            curl ${source_url}/$s -o $sdk_path/sources/$s
             [[ $? = 0 ]] || {
                 warn "Error downloading: $s"
                 warn "Url: ${source_url}/$s"
@@ -227,15 +227,15 @@ package-import() {
 
         if [[ "$s" -regex-match ".*\.dsc$" ]]; then
             func "detected package dsc"
-            file sources/$s | grep -i 'text' > /dev/null
+            file $sdk_path/sources/$s | grep -i 'text' > /dev/null
             src_dsc=$s 
         elif [[ "$s" -regex-match ".*\.debian\..*" ]]; then
             func "detected package debian"
-            file sources/$s | grep -i 'compressed data' > /dev/null
+            file $sdk_path/sources/$s | grep -i 'compressed data' > /dev/null
             src_debian=$s
         else
             func "detected package orig"
-            file sources/$s | grep -i 'compressed data' > /dev/null
+            file $sdk_path/sources/$s | grep -i 'compressed data' > /dev/null
             src_orig=$s
         fi
     done    
@@ -260,7 +260,7 @@ package-verify() {
 
     notice "Verifying signatures for $src_name $src_ver"
     local _dsc
-    _dsc=`cat sources/${src_dsc}`
+    _dsc=`cat $sdk_path/sources/${src_dsc}`
 
     hash_map=()
     hash_dsc_256=`print - $_dsc | awk '
@@ -274,7 +274,7 @@ BEGIN { found=0 }
     for f in ${(k)hash_map}; do
         act "Compare SHA256 checksums"
         print "SHA256 desc checksum: ${hash_map[$f]} ${f}"
-        hash_tar_256=`sha256sum sources/$f | awk '{print $1}'`
+        hash_tar_256=`sha256sum $sdk_path/sources/$f | awk '{print $1}'`
         print "SHA256 file checksum: $hash_tar_256 ${f}"
         print
     done
