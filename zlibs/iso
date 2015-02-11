@@ -20,9 +20,20 @@
 # this source code; if not, write to: Free Software Foundation, Inc.,
 # 675 Mass Ave, Cambridge, MA 02139, USA.
 
+auto-iso() {
+    fn iso
+
+    iso-import
+
+    iso-local-packages
+
+    iso-prepare
+
+    iso-make
+}
 
 iso-import() {
-    fn geniso-prepare
+    fn iso-import
     req=(release installer chroot_arch)
     ckreq
 
@@ -86,10 +97,11 @@ iso-local-packages() {
         found=0
         olds=`find $root/$iso/pool -type f -name "${pfx}_*_${sfx}"`
         for o in ${(f)olds}; do
-            [[ "$o" -regex-match "devuan-.*" ]] && continue
-            print - "- `basename $o`"
-            sudo mv $o $root/usr/src/devuan-iso/replaced
-            found=1
+#            [[ "$o" =~ "devuan" ]] # TODO
+                print - "- `basename $o`"
+                sudo mv $o $root/usr/src/devuan-iso/replaced
+                found=1
+ 
         done
 
         # copy new in place
@@ -100,6 +112,7 @@ iso-local-packages() {
 
     done
 
+    # devuan base packages
     typeset -aU bases
     bases=(`find $sdk_path/builds -type f -name 'devuan-*all.deb'`)
     for pkg in $bases; do
@@ -109,6 +122,16 @@ iso-local-packages() {
         sudo cp $pkg $root/$iso/pool/main/devuan/
     done
 
+    # sysvinit packages
+    bases=()
+    bases=(`find $sdk_path/builds/sysvinit -type f -name "*${chroot_arch}.deb"`)
+    for pkg in $bases; do
+        pn=`basename $pkg`
+        # copy baseconf
+        print - "+ $pn"
+        sudo cp $pkg $root/$iso/pool/main/devuan/
+    done
+    
     act "all packages succesfully replaced."
 }
 
@@ -134,11 +157,12 @@ EOF
 
     tmp=`mktemp`
     cat <<EOF >> $tmp
-bzip2
+sysvinit-core
 devuan-baseconf
 devuan-keyring
 EOF
     sudo mv $tmp $root/$iso/.disk/base_include
+    # ?? bzip2
 
     tmp=`mktemp`
     cat <<EOF >> $tmp
@@ -238,6 +262,8 @@ iso-make() {
     freq=(chroot/$chroot_arch/$iso/README.html)
     ckreq
 
+    notice "Toasting netinst for $release $chroot_arch"
+
     schroot -c devuan-$chroot_arch \
         -u root -d $root/usr/src/devuan-iso -- \
         genisoimage -o devuan-$release-$chroot_arch.iso \
@@ -245,6 +271,13 @@ iso-make() {
         -boot-info-table -b isolinux/isolinux.bin -c isolinux/boot.cat \
         ./$release-$chroot_arch-netinst
 
+    mkdir -p iso
+    cp $root/usr/src/devuan-iso/devuan-$release-$chroot_arch.iso iso/
+
+    pushd $sdk_path
+    act "Netinst ISO ready for $release $chroot_arch"
+    act " `ls -lh iso/devuan-$release-$chroot_arch.iso`"
+    popd
         # xorriso -as mkisofs -r \
         # -checksum_algorithm_iso md5,sha1,sha256,sha512 \
         # -V 'Devuan $release $chroot_arch' \

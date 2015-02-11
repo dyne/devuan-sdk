@@ -52,7 +52,7 @@ get_staged_version() {
 package-stage() {
     fn package-stage
     req=(src_name src_dest)
-    freq=(sources/$src_dest)
+    freq=(sources/$src_dsc)
     reqck
 
     package-unpack
