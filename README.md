@@ -112,7 +112,8 @@ Devuan (*) Source version:  3.4.3-15
 Devuan  .  Source destination: nethack-3.4.3
 Devuan  .  Package description: nethack_3.4.3-15.dsc
 Devuan  .  Package orig source: nethack_3.4.3.orig.tar.gz
-Devuan  .  Package deb  source: nethack_3.4.3-15.debian.tar.xz```
+Devuan  .  Package deb  source: nethack_3.4.3-15.debian.tar.xz
+```
 
 Then let's verify signatures with
 
