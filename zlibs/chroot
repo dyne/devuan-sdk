@@ -57,7 +57,7 @@ chroot-config() {
         return 1
     }
 
-    mkdir -p $sdk_path/chroot/$chroot_arch
+    sudo mkdir -p $sdk_path/chroot/$chroot_arch
 
     tmp=`mktemp`
     chmod a+r $tmp
@@ -83,7 +83,6 @@ EOF
 chroot-create() {
     fn chroot-create
     req=(chroot_arch)
-    freq=(chroot/$chroot_arch)
     reqck
 
     chroot-config
@@ -96,7 +95,7 @@ chroot-create() {
     notice "First stage debootstrap"
 
     sudo \
-        debootstrap --components=$chroot_components \
+        debootstrap --components=$chroot_comp \
         --variant=$chroot_variant \
         --verbose \
         --foreign --arch $chroot_arch \
