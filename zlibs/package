@@ -89,12 +89,26 @@ version() {
     reqck
 
     q_ver="$1"
-    if [[ "$q_ver" = "" ]]; then
 
+    [[ "$q_ver" = "" ]] && {
         act "$src_name package version set blank"
         src_ver=""
+        return 0
+    }
 
-    elif [[ "$q_ver" = "latest" ]]; then
+    [[ "$q_ver" = "list" ]] && {
+        #### Debian website parsing
+        notice "Listing available versions for Debian package: $src_name"
+        curl -s "https://packages.debian.org/search?keywords=$src_name&searchon=all&suite=all&section=all" | awk '
+BEGIN { found=0 }
+/resultlink/ { found=1; print $0; next }
+{ if(found > 0) found++
+  if(found == 4) { gsub(/<br>/,"",$0); print $0; found=0 }
+}' | sed 's/<[^>]\+>//g'
+        return 0
+    }
+
+    if [[ "$q_ver" = "latest" ]]; then
 
         package-query-debian
         for s in $src_files; do
@@ -106,29 +120,21 @@ version() {
 
         # TODO check on package or version not found
 
-    elif [[ "$q_ver" = "list" ]]; then
-
-        #### Debian website parsing
-        notice "Listing available versions for Debian package: $src_name"
-        curl -s "https://packages.debian.org/search?keywords=$src_name&searchon=all&suite=all&section=all" | awk '
-BEGIN { found=0 }
-/resultlink/ { found=1; print $0; next }
-{ if(found > 0) found++
-  if(found == 4) { gsub(/<br>/,"",$0); print $0; found=0 }
-}' | sed 's/<[^>]\+>//g'
-        
     else
 
         act "$src_name source version set to $q_ver"        
 
         package-query-debian $q_ver
 
-        orig_ver=${src_ver%-*}
 
         # TODO check on package or version not found
 
     fi
+    
+    orig_ver=${src_ver%-*}
+
     RPROMPT="${repo_name:-$src_name} ${repo_ver:-$src_ver} ${chroot_arch}"
+    return 0
 }
 
 get_src_dest() {
@@ -182,6 +188,7 @@ package() {
         src_ver=$staged_ver
     }
 
+    orig_ver=${src_ver%-*}
 
     return 0
 

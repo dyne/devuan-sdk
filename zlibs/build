@@ -28,6 +28,9 @@ build() {
     reqck
 
     notice "Building repository: $repo_name"
+    orig_ver=${src_ver%-*}
+    act "upstream version: $orig_ver"
+    act "package version: $src_ver"
 
     build-deps
 
@@ -64,13 +67,23 @@ BEGIN { found=0 }
     act "${#repo_deps} dependencies found"
     act "$repo_deps"
 
+    # gather array of installed packages
+    installed=(`chdo dpkg -l  | awk '
+/ii/ { print $2 }
+/rc/ { print $2 }
+'`)
+
     TRAPZERR() { }
 
     for d in $repo_deps; do
-        act "Installing dep: $d"
-        schroot -c devuan-$chroot_arch -u root \
-            -d /usr/src \
-            -- apt-get --force-yes -y install $d
+        act "Checking dep: $d"
+        # check if dep is in installed array
+        [[ "${installed[(r)$d]}" == "$d" ]] || {
+            act "Installing dep: $d"
+            schroot -c devuan-$chroot_arch -u root \
+                -d /usr/src \
+                -- apt-get --force-yes -y install $d
+        }
     done
     TRAPZERR() { 
         error "Error reported, operation aborted."
@@ -123,7 +136,7 @@ build-start() {
     notice "Starting to build $repo_name in chroot $chroot_arch"
     # launch dpkg-buildpackage in chroot
     schroot -c devuan-$chroot_arch -u root \
-        -d $sdk_path/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver} \
+        -d /usr/src/${src_name}-${orig_ver} \
         -- dpkg-buildpackage -uc -us
 
 }
