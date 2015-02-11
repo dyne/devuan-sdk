@@ -150,6 +150,15 @@ package() {
 
     q_name=$1
 
+    [[ -r stage/$q_name/debian/changelog ]] && {
+        src_name=$q_name
+        get_staged_version
+        act "source already staged at version $staged_ver"
+        src_ver=$staged_ver
+        orig_ver=${src_ver%-*}
+        return 0
+    }
+
     package-query-debian $q_name
     # at this point we know the src_name
 

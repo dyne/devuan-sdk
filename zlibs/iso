@@ -70,12 +70,12 @@ iso-local-packages() {
     notice "Replacing installer with local package builds"
     act "release $release arch $chroot_arch"
 
-    builds=`find $sdk_path/builds -type f -name "*${chroot_arch}.deb"`
-    builds+=`find $sdk_path/builds -type f -name "*all.deb"`
+    builds=(`find $sdk_path/builds -type f -name "*${chroot_arch}.deb"`)
+    builds+=(`find $sdk_path/builds -type f -name "*all.deb"`)
 
     sudo mkdir -p $root/$iso/pool/main/devuan
     sudo mkdir -p $root/usr/src/devuan-iso/replaced
-    for pkg in ${(f)builds}; do
+    for pkg in ${builds}; do
 
         # calculate package prefix/suffix for matching
         pn=`basename $pkg`
@@ -86,7 +86,7 @@ iso-local-packages() {
         found=0
         olds=`find $root/$iso/pool -type f -name "${pfx}_*_${sfx}"`
         for o in ${(f)olds}; do
-            [[ "$o" =~ "\+devuan" ]] && continue
+            [[ "$o" -regex-match "devuan-.*" ]] && continue
             print - "- `basename $o`"
             sudo mv $o $root/usr/src/devuan-iso/replaced
             found=1
@@ -98,19 +98,17 @@ iso-local-packages() {
             sudo cp $pkg $root/$iso/pool/main/devuan/
         }
 
-        # copy baseconf
-        [[ $pn -regex-match "devuan-baseconf.*deb" ]] && {
-            print - "+ $pn"
-            sudo cp $pkg $root/$iso/pool/main/devuan/
-        }
-
-        # copy keyring
-        [[ $pn -regex-match "devuan-keyring.*deb" ]] && {
-            print - "+ $pn"
-            sudo cp $pkg $root/$iso/pool/main/devuan/
-        }
-
     done
+
+    typeset -aU bases
+    bases=(`find $sdk_path/builds -type f -name 'devuan-*all.deb'`)
+    for pkg in $bases; do
+        pn=`basename $pkg`
+        # copy baseconf
+        print - "+ $pn"
+        sudo cp $pkg $root/$iso/pool/main/devuan/
+    done
+
     act "all packages succesfully replaced."
 }
 
