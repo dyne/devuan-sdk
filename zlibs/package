@@ -20,9 +20,6 @@
 # this source code; if not, write to: Free Software Foundation, Inc.,
 # 675 Mass Ave, Cambridge, MA 02139, USA.
 
-# web client command
-webc="elinks -no-numbering -dump -dump-width 256"
-
 # gnupg commands
 gpg_fast="gpg2 --no-default-keyring --no-auto-check-trustdb --keyring $sdk_path/.gnupg/debian-keyring.gpg"
 gpg="gpg2 --no-default-keyring --keyring $sdk_path/.gnupg/debian-keyring.gpg --batch"
@@ -196,7 +193,7 @@ package() {
 }
 
 
-package-import() {
+import package-import() {
     fn package-import
     req=(src_name src_ver src_files)
     reqck
@@ -253,7 +250,7 @@ package-import() {
 
 
 
-package-verify() {
+verify package-verify() {
     fn package-verify
     req=(src_dsc)
     freq=(sources/$src_dsc)

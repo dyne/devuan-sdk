@@ -6,16 +6,19 @@
 
 This set of scripts aid package maintainers to import sources from
 Debian, verify signatures and stage them to be imported inside
-Devuan's git repository.
+Devuan's git repository. 
 
 # Requirements
 
-Tested on Debian and Ubuntu, this SDK requires to have Zsh installed,
-plus gnupg2 and curl.
+This SDK is designed to be used interactively from a terminal as well
+from shell scripts.
+
+Using Debian or Ubuntu, install `zsh` `gnupg2` `schroot` `debootstrap`.
+
+The Devuan SDK is a sort of interactive shell extension, all the
+instructions below should be followed while already running in ZSh.
 
 # Quick start
-
-Using Debian or Ubuntu, install `zsh` `gnupg2` `schroot` `debootstrap`
 
 Then clone the SDK repository:
 
@@ -32,12 +35,6 @@ source sdk
 init
 ```
 
-This will take a while to clone all Devuan repositories and download
-Debian's keyring. The `source sdk` is in fact where one loads the sdk:
-the running shell *will become the interactive sdk console* providing
-command completion and online help. To exit the SDK one has to close
-the running shell, or the terminal.
-
 Once `init` is done go into the `stage` directory and you'll see all
 the Devuan repositories will be there.
 
@@ -45,15 +42,17 @@ To import a new package (lets pick hasciicam):
 
 ```
 package hasciicam
-package-import
-package-verify
-package-stage
+version latest
+import
+verify
+stage
 ```
 
-Then hasciicam will be in stage/ and checked into git. New versions
-will be checked in as branches. To build it just launch `build`.
+Then the hasciicam sourcecode will be in stage/ and checked in
+git. New versions will be checked in as branches. To build it just
+launch `build`.
 
-On the other hand, to burn an iso:
+On the other hand, to create a chroot and burn an iso:
 
 ```
 chroot i386
@@ -61,7 +60,10 @@ chroot-create
 auto-iso
 ```
 
-And after that, to burn a new one with hasciicam inside:
+Beware, this will take long: will run debootstrap, download Debian's
+netinst iso and customize it as needed.
+
+To burn a new iso with hasciicam inside:
 ```
 iso-add hasciicam
 iso-prepare
@@ -70,8 +72,8 @@ iso-make
 
 Pretty easy no? This is the basic usage. SDK has also functions to
 locally compile the packages into schroot of various architectures and
-even serve them locally as a repository over http, to facilitate local
-testing.
+even serve the results locally as an apt repository over http, to
+facilitate local testing.
 
 # Complete instructions
 
@@ -99,6 +101,21 @@ From inside devuan-sdk/ give the following commands:
 
 ```
 source sdk
+init
+```
+
+The `source sdk` is in fact where one loads the sdk:
+the running shell *will become the interactive sdk console* providing
+command completion and online help. To exit the SDK one has to close
+the running shell, or the terminal.
+
+The `init` command needs to be executed only on the first run: it will
+take a while to clone all Devuan repositories and download Debian's
+keyring.
+
+Once done, import the nethack-console package:
+
+```
 package nethack-console
 package-import
 ```
@@ -171,9 +188,6 @@ Initialized empty Git repository in /home/jrml/devel/devuan-sdk/stage/nethack-co
 Devuan (*) Stage successfull: stage/nethack-console
 Devuan  .  Remote: https://git.devuan.org/packages-base/nethack-console
 Devuan (*) Importing package: nethack-console
-[master d25e6e3] import stamp version 3.4.3
- 1 file changed, 11 insertions(+)
- create mode 100644 .devuan
 ```
 
 As all goes well you will see that the name and version of the package
@@ -188,7 +202,10 @@ version inside the existing imported repository. This way maintainers
 can use git to analyse differences and merge them manually into the
 current Devuan package.
 
-## Prepare the build chroots
+All `package-` steps can be listed by interactive completion, just
+type `package-[tab]` for a reminder.
+
+## Prepare to build in chroots
 
 Once we have staged a package and eventually extirpated any systemd
 dependencies, we'll certainly want to test locally its build and
@@ -202,6 +219,7 @@ sudo):
 
 ```
 arch i386
+chroot-create
 ```
 
 Then wait since this will take a while the first time. The chroot will
@@ -238,13 +256,47 @@ To sign the package use:
 build-sign
 ```
 
+The `build` command is really a wrapper among various steps, to list
+them one can use again `build-[tab]`. All steps can be launched
+independently:
+
+```
+build-deps
+build-clean
+build-sync
+build-pack-orig
+build-pack-debian
+build-start
+build-finish
+```
+
+# Toast the iso
+
+The installer ISO can be toasted into a ready to burn image with a
+simple series of commands:
+
+```
+iso-import
+iso-local-packages
+iso-prepare
+iso-make
+```
+
+The sequence is executed by `auto-iso`.
+
+We just use to dowload Debian's netinst and change its contents for
+now, but things may change rapidly in the future.
+
 # Caveat
 
 This is an early release with limited functionality to facilitate the
-import of some packages.
+import and maintainance of some packages that are core to Devuan.
 
-This SDK is designed to be used interactively from a terminal as well
-from shell scripts.
+Things may change in the future as we are full on working.
+
+To support the development you are welcome to open issues on problems
+and bugs you encounter, open merge requests of patches or simply
+getting involved in other tasks evident on https://git.devuan.org
 
 # License
 

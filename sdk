@@ -76,7 +76,7 @@ source zlibs/init
 source zlibs/helpers
 source zlibs/package
 source zlibs/chroot
-source zlibs/git
+source zlibs/stage
 source zlibs/build
 # source zlibs/mirror
 source zlibs/iso
