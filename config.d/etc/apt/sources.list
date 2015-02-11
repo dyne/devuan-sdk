@@ -1,6 +1,10 @@
+
 # Devuan SDK default sources.list for chroot use
 
-# Debian 8.0
+# Devuan 'jessie' 1.0
+# deb http://packages.devuan.org/devuan/ jessie main
+
+# Debian 'jessie' 8.0
 deb http://ftp.debian.org/debian/ jessie main
 deb-src http://ftp.debian.org/debian/ jessie main
 

@@ -49,25 +49,27 @@ stage
 ```
 
 Then the hasciicam sourcecode will be in stage/ and checked in
-git. New versions will be checked in as branches. To build it just
-launch `build`.
+git. New versions will be checked in as branches.
 
 On the other hand, to create a chroot and burn an iso:
 
 ```
 chroot i386
 chroot-create
-auto-iso
 ```
 
 Beware, this will take long: will run debootstrap, download Debian's
 netinst iso and customize it as needed.
 
+Back to our source package, to build it into the chroot we've just
+created now launch `build`.
+
 To burn a new iso with hasciicam inside:
+
 ```
+iso-import
 iso-add hasciicam
-iso-prepare
-iso-make
+auto-iso
 ```
 
 Pretty easy no? This is the basic usage. SDK has also functions to

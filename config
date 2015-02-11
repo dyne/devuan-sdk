@@ -9,7 +9,7 @@ release=jessie
 section=main
 
 # TODO change with final release of Debian when ready
-installer=http://gemmei.acc.umu.se/cdimage/jessie_di_rc1
+installer=http://devuan.org
 # amd64/iso-cd/debian-jessie-DI-rc1-amd64-netinst.iso
 
 # deboostrap settings for chroots

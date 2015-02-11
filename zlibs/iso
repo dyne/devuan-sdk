@@ -59,7 +59,7 @@ iso-import() {
     act "$release $chroot_arch"
 
     # TODO change with final release of Debian when ready
-    debian_iso_url=$installer/$chroot_arch/iso-cd/debian-$release-DI-rc1-$chroot_arch-netinst.iso
+    debian_iso_url=$installer/debian-$release-DI-rc1-$chroot_arch-netinst.iso
 
     root=$sdk_path/chroot/$chroot_arch
 
@@ -70,7 +70,7 @@ iso-import() {
 
     sudo \
         test -r $src/debian-iso/$release-$chroot_arch-netinst.iso || {
-        chdo \
+        sudo \
             curl $debian_iso_url \
             -o $src/debian-iso/$release-$chroot_arch-netinst.iso
     }
