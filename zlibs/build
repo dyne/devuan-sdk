@@ -175,10 +175,11 @@ build-pack-debian() {
 build-start() {
     fn build-start
     req=(src_name chroot_arch orig_ver)
+    orig_ver=${src_ver%-*}
     freq=(chroot/$chroot_arch/usr/src/$src_name-$orig_ver)
     ckreq
 
-    notice "Starting to build $repo_name in chroot $chroot_arch"
+    notice "Starting build of ${src_name}-${src_ver} for $chroot_arch"
     # launch dpkg-buildpackage in chroot
     schroot -c devuan-$chroot_arch -u root \
         -d /usr/src/${src_name}-${orig_ver} \
@@ -186,10 +187,27 @@ build-start() {
 
 }
 
+build-retry() {
+    fn build-retry
+    req=(src_name chroot_arch orig_ver)
+    freq=(chroot/$chroot_arch/usr/src/$src_name-$orig_ver)
+    ckreq
+
+    notice "Retrying build of ${src_name}-${src_ver} for $chroot_arch"
+
+    build-sync
+
+    # -nc is no clean
+    schroot -c devuan-$chroot_arch -u root \
+        -d /usr/src/${src_name}-${orig_ver} \
+        -- dpkg-buildpackage -nc
+
+}
+
 build-finish() {
-    src=chroot/$chroot_arch/usr/src
 
     fn build-finish
+    src=chroot/$chroot_arch/usr/src
     req=(src_name chroot_arch orig_ver)
     freq=(chroot/$chroot_arch/etc/passwd
     $src/${src_name}_${src_ver}_${chroot_arch}.changes)

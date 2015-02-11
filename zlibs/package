@@ -71,6 +71,7 @@ BEGIN { found=0 }
             src_orig=$s
         }
         [[ "$s" -regex-match ".*\.dsc$" ]] && {
+            func "dsc: $s"
             src_ver=${s#*${src_name}_}
             src_ver=${src_ver%.dsc*}
             src_dsc=$s
@@ -284,22 +285,14 @@ BEGIN { found=0 }
 
 package-unpack() {
     fn package-unpack
-    req=(src_orig)
+    req=(src_orig src_dsc src_files)
     freq=(sources/$src_orig)
     reqck
 
-    act "Decompressing source file: $src_orig"
-    tar xf sources/${src_orig} -C sources
-
-    [[ -d sources/${src_dest} ]] || {
-        warn "Destination, not found: sources/${src_dest}"
-        return 1
-    }
-
-    [[ -f sources/${src_debian} ]] && {
-        act "Decompressing debian source file"
-        tar xf sources/${src_debian} -C sources/${src_dest}/
-    }
+    act "Decompressing source $src_name $src_ver"
+    pushd $sdk_path/sources
+    dpkg-source --no-check --skip-patches -x $src_dsc
+    popd
     return 0
 }
 
