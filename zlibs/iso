@@ -52,11 +52,66 @@ iso-import() {
     sudo mount -o loop $root/usr/src/debian-iso/$release-$chroot_arch-netinst.iso \
         $root/usr/src/debian-iso/$release-$chroot_arch-netinst
 
-    sudo rsync -rX $root/usr/src/debian-iso/$release-$chroot_arch-netinst/* \
+    sudo rsync --delete -rX $root/usr/src/debian-iso/$release-$chroot_arch-netinst/* \
         $root/usr/src/devuan-iso/$release-$chroot_arch-netinst/
 
     sudo umount $root/usr/src/debian-iso/$release-$chroot_arch-netinst
 
+}
+
+iso-local-packages() {
+    fn iso-local-packages
+    req=(release chroot_arch)
+    root=$sdk_path/chroot/$chroot_arch
+    iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
+    freq=(chroot/$chroot_arch/$iso/README.html)
+    ckreq
+
+    notice "Replacing installer with local package builds"
+    act "release $release arch $chroot_arch"
+
+    builds=`find $sdk_path/builds -type f -name "*${chroot_arch}.deb"`
+    builds+=`find $sdk_path/builds -type f -name "*all.deb"`
+
+    sudo mkdir -p $root/$iso/pool/main/devuan
+    sudo mkdir -p $root/usr/src/devuan-iso/replaced
+    for pkg in ${(f)builds}; do
+
+        # calculate package prefix/suffix for matching
+        pn=`basename $pkg`
+        pfx=${pn[(ws:_:)1]}
+        sfx=${pn[(ws:_:)3]}
+        func "replacing pattern: ${pfx}_*_${sfx}"
+        # remove old packages
+        found=0
+        olds=`find $root/$iso/pool -type f -name "${pfx}_*_${sfx}"`
+        for o in ${(f)olds}; do
+            [[ "$o" =~ "\+devuan" ]] && continue
+            print - "- `basename $o`"
+            sudo mv $o $root/usr/src/devuan-iso/replaced
+            found=1
+        done
+
+        # copy new in place
+        [[ $found = 1 ]] && {
+            print - "+ $pn"
+            sudo cp $pkg $root/$iso/pool/main/devuan/
+        }
+
+        # copy baseconf
+        [[ $pn -regex-match "devuan-baseconf.*deb" ]] && {
+            print - "+ $pn"
+            sudo cp $pkg $root/$iso/pool/main/devuan/
+        }
+
+        # copy keyring
+        [[ $pn -regex-match "devuan-keyring.*deb" ]] && {
+            print - "+ $pn"
+            sudo cp $pkg $root/$iso/pool/main/devuan/
+        }
+
+    done
+    act "all packages succesfully replaced."
 }
 
 iso-prepare() {
@@ -67,6 +122,7 @@ iso-prepare() {
     freq=(chroot/$chroot_arch/$iso/README.html)
     ckreq
 
+    notice "Indexing all installer packages"
 
     sudo chmod u+w $root/$iso
 
@@ -81,11 +137,8 @@ EOF
     tmp=`mktemp`
     cat <<EOF >> $tmp
 bzip2
-zsh
-vim-nox
-less
-dialog
-sysvinit
+devuan-baseconf
+devuan-keyring
 EOF
     sudo mv $tmp $root/$iso/.disk/base_include
 
@@ -147,7 +200,7 @@ EOF
     # here we grep out systemd from the indices/override this may be a
     # bit too aggressive and it might be better to do it by hand
     curl $mirror/indices/override.$release.main.gz \
-        | gunzip | grep -v systemd >> $tmp 
+        | gunzip | grep -v systemd >> $tmp
     sudo mv $tmp $root/usr/src/devuan-iso/indices/override
 
     schroot -c devuan-$chroot_arch \
