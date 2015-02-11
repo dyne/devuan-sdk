@@ -33,7 +33,9 @@ package-query-debian() {
     req=(q_name)
     reqck
 
-    pkg_url=https://packages.debian.org/${release}/${q_name}
+    rel=${1:-$release}
+
+    pkg_url=https://packages.debian.org/${rel}/${q_name}
     act "contacting $pkg_url"
 
     #### Debian website parsing
@@ -64,6 +66,7 @@ BEGIN { found=0 }
     src_name=${src_name[(ws:_:)1]}
 
     for s in $src_files; do
+        act "Source: $s"
         [[ "$s" -regex-match ".*\.orig\..*" ]] && {
             src_orig=$s
         }
@@ -82,7 +85,7 @@ BEGIN { found=0 }
 
 version() { 
     fn version
-    req=(src_name src_files)
+    req=(src_name)
     reqck
 
     q_ver="$1"
@@ -104,8 +107,8 @@ version() {
     elif [[ "$q_ver" = "list" ]]; then
 
         #### Debian website parsing
-        notice "Listing available versions for Debian package: $pkg_name"
-        curl -s "https://packages.debian.org/search?keywords=$pkg_name&searchon=all&suite=all&section=all" | awk '
+        notice "Listing available versions for Debian package: $src_name"
+        curl -s "https://packages.debian.org/search?keywords=$src_name&searchon=all&suite=all&section=all" | awk '
 BEGIN { found=0 }
 /resultlink/ { found=1; print $0; next }
 { if(found > 0) found++
@@ -114,8 +117,10 @@ BEGIN { found=0 }
         
     else
 
+        act "$src_name source version set to $q_ver"        
         src_ver=$q_ver
-        act "$src_name source version set to $src_ver"
+
+        package-query-debian $q_ver
         # TODO detect automatically source filenames: we could render
         # them, but we don't know which compression was used for them
         # (tar.* extension)
