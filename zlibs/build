@@ -210,7 +210,7 @@ build-finish() {
     src=chroot/$chroot_arch/usr/src
     req=(src_name chroot_arch orig_ver)
     freq=(chroot/$chroot_arch/etc/passwd
-    $src/${src_name}_${src_ver}_${chroot_arch}.changes)
+        $src/${src_name}_${src_ver}_${chroot_arch}.changes)
     ckreq
 
     notice "Finishing build $src_name versioned $src_ver"
