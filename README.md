@@ -205,7 +205,8 @@ can use git to analyse differences and merge them manually into the
 current Devuan package.
 
 All `package-` steps can be listed by interactive completion, just
-type `package-[tab]` for a reminder.
+type `package-[tab]` for a reminder. They are also aliased to shorter
+commands: simply omitt the `package-` prefix.
 
 ## Prepare to build in chroots
 
@@ -247,7 +248,7 @@ cp` files from the host to chroot.
 Just type:
 
 ```
-build
+auto-build
 ```
 
 If all goes well, results will be in the SDK subdir `builds/`.
@@ -258,9 +259,9 @@ To sign the package use:
 build-sign
 ```
 
-The `build` command is really a wrapper among various steps, to list
-them one can use again `build-[tab]`. All steps can be launched
-independently:
+The `auto-build` command is really a wrapper among various steps, to
+list them one can use again `build-[tab]`. All steps can be launched
+standalone:
 
 ```
 build-deps
@@ -275,32 +276,34 @@ build-finish
 # Toast the iso
 
 The installer ISO can be toasted into a ready to burn image with a
-simple series of commands:
+simple `auto-iso` command, here the breakdown of its various steps:
 
 ```
 iso-import
-iso-local-packages
+iso-replace-packages
 iso-prepare
 iso-make
 ```
 
-The sequence is executed by `auto-iso`.
-
 We just use to dowload Debian's netinst and change its contents for
-now, but things may change rapidly in the future.
+now, but things may change rapidly in some future.
 
 # Caveat
 
 This is an early release with limited functionality to facilitate the
 import and maintainance of some packages that are core to Devuan.
 
-Things may change in the future as we are full on working.
+Some things may change in the future.
 
 To support the development you are welcome to open issues on problems
 and bugs you encounter, open merge requests of patches or simply
 getting involved in other tasks evident on https://git.devuan.org
 
-# License
+# Acknowledgments
+
+The Devuan SDK was conceived during a period of residency at the
+Schumacher college in Dartington UK, greatly inspired by the laborious
+and mindful atmosphere of its wonderful premises.
 
 Devuan SDK is Copyright (C) 2015 by the Dyne.org Foundation
 

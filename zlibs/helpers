@@ -31,6 +31,19 @@ ckreq reqck() {
         
 html_strip() { sed 's/<[^>]\+>//g' }
 
+# get the name of the package from a filename
+file-to-name() { 
+    sysread in
+    print ${in[(ws:_:)1]}
+}
+file-to-ver() {
+    pn=`print $1 | file-to-name`
+    ext=${1##*.}
+    pver=${1#*${pn}_}
+    pver=${pver%.$ext*}
+    print $pver
+}
+
 tarcmd() {
     if [[ "$1" -regex-match ".*\.tar.bz2" ]]; then
         print -n j

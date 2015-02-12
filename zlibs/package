@@ -25,6 +25,8 @@ gpg_fast="gpg2 --no-default-keyring --no-auto-check-trustdb --keyring $sdk_path/
 gpg="gpg2 --no-default-keyring --keyring $sdk_path/.gnupg/debian-keyring.gpg --batch"
 
 
+# provisional implementation
+# scraps the website search
 package-query-debian() {
     fn package-query-debian
     req=(q_name)
@@ -80,6 +82,8 @@ BEGIN { found=0 }
     done
 }
 
+# at this point the src_files array contains the list of source
+# filenames taken from the web: dsc orig [debian]
 
 version() { 
     fn version
@@ -175,10 +179,12 @@ package() {
 
     notice "Source selected: $src_name"
 
-    [[ -r $sdk_path/sources/$src_dsc ]] && {
+    if [[ -r $sdk_path/sources/$src_dsc ]]; then
         act "source package already downloaded"
         get_src_dest
-    }
+    else
+        warn "source package not found, run import to download"
+    fi
 
     [[ -r $sdk_path/stage/$src_name/debian/changelog ]] && {
         get_staged_version

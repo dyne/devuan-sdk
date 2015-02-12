@@ -25,7 +25,7 @@ auto-iso() {
 
     iso-import
 
-    iso-local-packages
+    iso-replace-packages
 
     iso-prepare
 
@@ -42,8 +42,12 @@ iso-add() {
         chroot/$chroot_arch/$iso/README.html)
     ckreq
 
-    sudo cp -v builds/$src_name/${q_name}_${src_ver}_${chroot_arch}.deb \
-        chroot/$chroot_arch/$iso/pool/main/devuan
+    act "Adding package to $release $chroot_arch iso: "
+
+    sudo cp $sdk_path/builds/$src_name/${q_name}_${src_ver}_${chroot_arch}.deb \
+        $sdk_path/chroot/$chroot_arch/$iso/pool/main/devuan
+
+    act "${q_name}_${src_ver}_${chroot_arch}.deb"
 
 }
     
@@ -87,73 +91,64 @@ iso-import() {
 
 }
 
-iso-local-packages() {
-    fn iso-local-packages
+# takes an argument: directory storing packages to inject
+# default to $sdk_path/builds
+iso-replace-packages() {
+    fn iso-replace-packages
     req=(release chroot_arch)
     root=$sdk_path/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
     freq=(chroot/$chroot_arch/$iso/README.html)
     ckreq
 
-    notice "Replacing installer with local package builds"
+    sdir=${1:-$sdk_path/builds}
+
+    notice "Replacing iso packages with those found in $sdir"
     act "release $release arch $chroot_arch"
-
-    builds=(`find $sdk_path/builds -type f -name "*${chroot_arch}.deb"`)
-    builds+=(`find $sdk_path/builds -type f -name "*all.deb"`)
-
-    sudo mkdir -p $root/$iso/pool/main/devuan
-    sudo mkdir -p $root/usr/src/devuan-iso/replaced
-    for pkg in ${builds}; do
-
-        # calculate package prefix/suffix for matching
-        pn=`basename $pkg`
-        pfx=${pn[(ws:_:)1]}
-        sfx=${pn[(ws:_:)3]}
-
-        sn=`dirname $pkg`
-        sn=${sn##*/}
-
-        func "replacing pattern: ${pfx}_*_${sfx}"
-        # remove old packages
-        found=0
-        olds=`find $root/$iso/pool -type f -name "${pfx}_*_${sfx}"`
-        for o in ${(f)olds}; do
-#            [[ "$o" =~ "devuan" ]] # TODO
-                print - "- $sn :: `basename $o`"
-                sudo mv $o $root/usr/src/devuan-iso/replaced
-                found=1
- 
-        done
-
-        # copy new in place
-        [[ $found = 1 ]] && {
-            print - "+ $sn :: $pn"
-            sudo cp $pkg $root/$iso/pool/main/devuan/
-        }
-
-    done
-
-    # devuan base packages
-    typeset -aU bases
-    bases=(`find $sdk_path/builds -type f -name 'devuan-*all.deb'`)
-    for pkg in $bases; do
-        pn=`basename $pkg`
-        # copy baseconf
-        print - "+ $pn"
-        sudo cp $pkg $root/$iso/pool/main/devuan/
-    done
-
-    # sysvinit packages
-    bases=()
-    bases=(`find $sdk_path/builds/sysvinit -type f -name "*${chroot_arch}.deb"`)
-    for pkg in $bases; do
-        pn=`basename $pkg`
-        # copy baseconf
-        print - "+ $pn"
-        sudo cp $pkg $root/$iso/pool/main/devuan/
-    done
     
-    act "all packages succesfully replaced."
+    typeset -A dvn_builds
+    # gather a map of builds we have locally
+    sdir_f=`find $sdir -type f -name "*.deb"`
+    for s in ${(f)sdir_f}; do
+        pname=`basename $s | file-to-name`
+        # check version differences too
+        # or make a pass and remove older versions
+        # pver=`print $pfile | file-to-ver`
+        dvn_builds+=($pname $s)
+    done
+
+    typeset -A deb_builds
+    # gather a map of packages in the iso
+    ddir_f=`find $root/$iso/pool -type f -name "*.deb"`
+    for d in ${(f)ddir_f}; do
+        pname=`basename $d | file-to-name`
+        deb_builds+=($pname $d)
+    done
+
+    c=0
+    for deb in ${(k)deb_builds}; do
+        # check if deb package is found in our builds
+        [[ "$dvn_builds[$deb]" = "" ]] || {
+
+            ours=$dvn_builds[$deb]
+            ours_b=`basename $ours`
+            theirs=$deb_builds[$deb]
+            theirs_b=`basename $theirs`
+
+            func "ours   $ours_b"
+            func "theirs $theirs_b"
+            # skip if exactly same package (already substituted)
+            [[ "$ours_b" = "$theirs_b" ]] && continue
+
+            sudo cp $ours $root/$iso/pool/main/devuan
+            act "add $ours_b"
+
+            sudo rm $theirs
+            act "sub $theirs_b"
+            c=$(( $c + 1 ))
+        }
+    done
+    act "$c packages substituted"
 }
 
 iso-prepare() {
@@ -292,8 +287,9 @@ iso-make() {
         -boot-info-table -b isolinux/isolinux.bin -c isolinux/boot.cat \
         ./$release-$chroot_arch-netinst
 
-    mkdir -p iso
-    cp $root/usr/src/devuan-iso/devuan-$release-$chroot_arch.iso iso/
+    mkdir -p $sdk_path/iso
+    cp $root/usr/src/devuan-iso/devuan-$release-$chroot_arch.iso \
+        $sdk_path/iso/
 
     pushd $sdk_path
     act "Netinst ISO ready for $release $chroot_arch"
