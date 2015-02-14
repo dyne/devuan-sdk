@@ -52,7 +52,7 @@ iso-add-package() {
     iso-prepare
 }
 
-# add a preseed.cfg file (should be inside $sdk_path
+# add a preseed.cfg file
 iso-add-preseed() {
     fn iso-add-preseed
     req=(chroot_arch)
@@ -106,6 +106,51 @@ EOF
     notice "Done adding preseed $q_name"
 }
     
+# add a preseed.cfg file
+iso-rm-preseed() {
+    fn iso-rm-preseed
+    req=(chroot_arch)
+    iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
+    freq=(chroot/$chroot_arch/$iso/README.html)    
+    ckreq
+
+
+    root=$sdk_path/chroot/$chroot_arch
+    iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
+
+    act "Removing preseed from $release $chroot_arch iso"
+
+    # prepare the script to substitute initrds
+    tmp=`mktemp`
+    cat <<EOF >> $tmp
+#!/bin/zsh
+
+initrds=\`find /$iso -name initrd.gz\`
+for i in \${(f)initrds}; do
+    print "Removing preseed from \$i"
+    rm -rf /usr/src/devuan-iso/initrd-tmp
+    mkdir -p /usr/src/devuan-iso/initrd-tmp
+    pushd /usr/src/devuan-iso/initrd-tmp
+    gzip -d < \$i | cpio --extract  --make-directories --no-absolute-filenames
+    rm -f preseed.cfg
+    rm -f \$i
+    find . | cpio -H newc --create  | gzip -9 > \$i
+    print "Replaced \$i"
+    popd
+    rm -rf /usr/src/devuan-iso/initrd-tmp
+done
+EOF
+    chmod +x $tmp
+    sudo mv $tmp $root/usr/src/devuan-iso/$release-$chroot_arch-preseed-script
+    chdo /usr/src/devuan-iso/$release-$chroot_arch-preseed-script
+
+    rm -f $iso/preseed.cfg
+
+    iso-prepare
+
+    notice "Done removing preseed"
+}
+
 
 iso-import() {
     fn iso-import
