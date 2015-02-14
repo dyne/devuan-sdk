@@ -57,6 +57,8 @@ stage package-stage() {
 
     package-unpack
 
+    orig_ver=${src_ver%-*}
+
     # already staged check if versions differ
     [[ -r $sdk_path/stage/$src_name/debian/changelog ]] && {
 
@@ -69,7 +71,7 @@ stage package-stage() {
             notice "Creating branch for version: $src_ver"
             pushd $sdk_path/stage/$src_name
             git checkout -b v${src_ver}
-            rsync -raX $sdk_path/sources/$src_dest/* \
+            rsync -raX $sdk_path/sources/${src_name}-${orig_ver}/* \
                 $sdk_path/stage/$src_name/
             git add .
             git commit -m "branched new version $src_ver"
@@ -78,7 +80,7 @@ stage package-stage() {
         return 0
     }
     mkdir -p $sdk_path/stage/$src_name
-    rsync -raX $sdk_path/sources/$src_dest/* \
+    rsync -raX $sdk_path/sources/${src_name}-${orig_ver}/* \
         $sdk_path/stage/$src_name/
     pushd $sdk_path/stage/$src_name
     git init

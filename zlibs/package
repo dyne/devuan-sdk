@@ -66,19 +66,22 @@ BEGIN { found=0 }
 
     for s in $src_files; do
         act "Source: $s"
-        [[ "$s" -regex-match ".*\.orig\..*" ]] && {
-            src_orig=$s
-        }
         [[ "$s" -regex-match ".*\.dsc$" ]] && {
             func "dsc: $s"
             src_ver=${s#*${src_name}_}
             src_ver=${src_ver%.dsc*}
             src_dsc=$s
+            continue
         }
             
         [[ "$s" -regex-match ".*\.debian\..*" ]] && {
             src_debian=$s
+            continue
         }
+
+        # if not .debian. or .dsc then is an orig source
+        src_orig=$s
+
     done
 }
 
@@ -140,8 +143,9 @@ BEGIN { found=0 }
 }
 
 get_src_dest() {
+    orig_ver=${src_ver%-*}
     # calculate destination directory from tar contents
-    src_dest=`tar tvf sources/$src_orig | awk '
+    src_dest=`tar tvf $sdk_path/sources/$src_orig | awk '
 { print $6; exit }
 '`
     src_dest=${src_dest%*/}

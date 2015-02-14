@@ -240,17 +240,24 @@ build-finish() {
             *) arch=$chroot_arch ;;
         esac
 
-        # TODO: contemplate more XC-Package-Type
-        # note: should generally now be replaced with Package-Type
-        if [[ "$b" =~ "-udeb" ]]; then
+        # TODO
+        # was XC-Package-Type
+        # now replaced with Package-Type
+        # ptype=`cat $sdk_path/$src/$src_name-$orig_ver/debian/control | awk '
+# /Package-Type:/ { print $2 }'`
+        
+        [[ -r $sdk_path/$src/${b}_${src_ver}_${arch}.udeb ]] && {
             sudo \
-                mv $sdk_path/$src/${b}_${src_ver}_${arch}.udeb \
+                cp $sdk_path/$src/${b}_${src_ver}_${arch}.udeb \
                 $sdk_path/builds/$src_name
-        else # generic debs
+        }
+
+        [[ -r $sdk_path/$src/${b}_${src_ver}_${arch}.deb ]] && {
             sudo \
-                mv $sdk_path/$src/${b}_${src_ver}_${arch}.deb \
+                cp $sdk_path/$src/${b}_${src_ver}_${arch}.deb \
                 $sdk_path/builds/$src_name
-        fi
+        }
+
     done
 
     # default sources
