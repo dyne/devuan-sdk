@@ -138,7 +138,6 @@ chroot-enter() {
     freq=(chroot/$chroot_arch/etc/passwd)
     reqck
 
-    
     schroot -c devuan-$chroot_arch -u root -d /root -s /bin/bash
 
 }

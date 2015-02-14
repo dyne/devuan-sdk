@@ -27,7 +27,8 @@ build auto-build() {
         chroot/$chroot_arch/etc/passwd)
     reqck
 
-    notice "Building repository: $repo_name"
+    notice "Building repository: $src_name"
+    package $src_name
     orig_ver=${src_ver%-*}
     act "upstream version: $orig_ver"
     act "package version: $src_ver"
