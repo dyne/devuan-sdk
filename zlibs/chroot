@@ -20,6 +20,9 @@
 # this source code; if not, write to: Free Software Foundation, Inc.,
 # 675 Mass Ave, Cambridge, MA 02139, USA.
 
+# default shell for the chroot
+chroot_shell=/bin/dash
+
 chroot arch() {
     fn arch
 
@@ -125,7 +128,7 @@ chdo() {
     freq=(chroot/$chroot_arch/etc/passwd)
     reqck
 
-    schroot -c devuan-$chroot_arch \
+    schroot -c devuan-$chroot_arch -s $chroot_shell \
         -u root -d /root -- $@
 }
     
@@ -136,14 +139,7 @@ chroot-enter() {
     reqck
 
     
-    # if [[ -r $sdk_path/chroot/$chroot_arch/bin/zsh ]]; then
-    #     chroot_shell=/bin/zsh
-    # else
-    #     warn "Zsh not found in chroot $chroot_arch"
-        chroot_shell=/bin/bash
-    # fi
-        
-    schroot -c devuan-$chroot_arch -u root -d /root -s $chroot_shell
+    schroot -c devuan-$chroot_arch -u root -d /root -s /bin/bash
 
 }
 

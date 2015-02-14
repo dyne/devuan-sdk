@@ -32,11 +32,11 @@ build auto-build() {
     act "upstream version: $orig_ver"
     act "package version: $src_ver"
 
-    build-deps
-
     build-clean
 
     build-sync
+
+    build-deps
 
     build-pack-orig
 
@@ -52,49 +52,62 @@ build-deps() {
     fn build-deps
     req=(src_name chroot_arch)
     freq=(stage/$src_name/debian/control
-        chroot/$chroot_arch/etc/passwd)
+        chroot/$chroot_arch/usr/src/${src_name}-${orig_ver})
     ckreq
 
     notice "Installing dependencies for package $src_name in $chroot_arch"
 
-    repo_deps=(`awk '
-func strip_deps(i) {
-  out=gensub(/Build-Depends:|,|\|/,"","g")
-  print out
-}
-BEGIN { found=0 }
-/^Build-Depends:/ { found=1; strip_deps($0); next }
-/^ / { if(found==1) strip_deps($0); next }
-/^$/ { found=0 }
-{ found=0 }
-' $sdk_path/stage/$src_name/debian/control | \
- sed -e 's/([^()]*)//g' -e 's/\[[^()]*\]//g'`)
+    TRAPZERR() { }
+
+    depline=`schroot -c devuan-$chroot_arch -u root \
+        -d /usr/src/${src_name}-${orig_ver} \
+        dpkg-checkbuilddeps 2>&1 | grep 'Unmet build dependencies'`
+
+    repo_deps=(`print ${depline##*dependencies:} | sed -e 's/([^()]*)//g' -e 's/\[[^()]*\]//g'`)
+
+    TRAPZERR() { 
+        error "Error reported, operation aborted."
+        return 1
+    }
+
+#     return 0
+
+#     # first parse
+#     repo_deps=(`awk '
+# func strip_deps(i) {
+#   out=gensub(/Build-Depends:|,|\|/,"","g")
+#   print out
+# }
+# BEGIN { found=0 }
+# /^Build-Depends:/ { found=1; strip_deps($0); next }
+# /^ / { if(found==1) strip_deps($0); next }
+# /^#/ { next }
+# /^$/ { found=0 }
+# { found=0 }
+# ' $sdk_path/stage/$src_name/debian/control | \
+#  sed -e 's/([^()]*)//g' -e 's/\[[^()]*\]//g'`)
 
     act "${#repo_deps} dependencies found"
     act "$repo_deps"
 
     # gather array of installed packages
-    installed=(`chdo dpkg -l  | awk '
-/ii/ { print $2 }
-/rc/ { print $2 }
-'`)
+#     installed=(`chdo dpkg -l  | awk '
+# /ii/ { print $2 }
+# /rc/ { print $2 }
+# '`)
 
-    TRAPZERR() { }
 
     for d in $repo_deps; do
-        act "Checking dep: $d"
-        # check if dep is in installed array
-        [[ "${installed[(r)$d]}" == "$d" ]] || {
+        # act "Checking dep: $d"
+        # # check if dep is in installed array
+        # [[ "${installed[(r)$d]}" == "$d" ]] || {
             act "Installing dep: $d"
             schroot -c devuan-$chroot_arch -u root \
                 -d /usr/src \
                 -- apt-get --force-yes -y install $d
-        }
+#        }
     done
-    TRAPZERR() { 
-        error "Error reported, operation aborted."
-        return 1
-    }
+
 }
 
 build-clean() {
@@ -104,19 +117,11 @@ build-clean() {
         chroot/$chroot_arch/etc/passwd)
     ckreq
 
-    notice "Clean source in chroot /usr/src/$src_name"
-    sudo \
-        rm -rf $sdk_path/chroot/$chroot_arch/usr/src/$src_name
-    sudo \
-        mkdir -p $sdk_path/chroot/$chroot_arch/usr/src/$src_name
-
     orig_ver=${src_ver%-*}
 
-    act "Sync repo into chroot"
+    notice "Clean source in chroot /usr/src/$src_name-${orig_ver}"
     sudo \
-        rsync -a --exclude='.git/' \
-        $sdk_path/stage/$src_name/* \
-        $sdk_path/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver}
+        rm -rf $sdk_path/chroot/$chroot_arch/usr/src/$src_name-${orig_ver}
 
 }
 
@@ -130,6 +135,10 @@ build-sync() {
     orig_ver=${src_ver%-*}
 
     act "Sync repo into chroot"
+
+    sudo \
+        mkdir -p $sdk_path/chroot/$chroot_arch/usr/src/$src_name-${orig_ver}
+
     sudo \
         rsync -a --exclude='.git/' \
         $sdk_path/stage/$src_name/* \
@@ -140,11 +149,10 @@ build-sync() {
 build-pack-orig() {
     fn build-pack-orig
     req=(chroot_arch src_name src_ver)
-    freq=(stage/$src_name/debian/control
-        chroot/$chroot_arch/etc/passwd)
-    ckreq
     orig_ver=${src_ver%-*}
-
+    freq=(stage/$src_name/debian/control
+        chroot/$chroot_arch/usr/src/${src_name}-${orig_ver})
+    ckreq
 
     act "Pack orig tarball in chroot"
     schroot -c devuan-$chroot_arch -u root \
@@ -153,12 +161,12 @@ build-pack-orig() {
         ${src_name}-${orig_ver}
 
 }
-
+    
 build-pack-debian() {
     fn build-pack-debian
     req=(chroot_arch src_name src_ver)
     freq=(stage/$src_name/debian/control
-        chroot/$chroot_arch/etc/passwd)
+        chroot/$chroot_arch/usr/src/${src_name}-${orig_ver})
     ckreq
     orig_ver=${src_ver%-*}
 
@@ -190,6 +198,7 @@ build-start() {
 build-retry() {
     fn build-retry
     req=(src_name chroot_arch orig_ver)
+    orig_ver=${src_ver%-*}
     freq=(chroot/$chroot_arch/usr/src/$src_name-$orig_ver)
     ckreq
 
