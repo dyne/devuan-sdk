@@ -32,8 +32,8 @@ auto-iso() {
     iso-make
 }
 
-iso-add() {
-    fn iso-add
+iso-add-package() {
+    fn iso-add-package
     req=(chroot_arch src_name src_ver)
     q_name=$1
     pkg=${q_name}_${src_ver}_${chroot_arch}.deb
@@ -49,8 +49,62 @@ iso-add() {
 
     act "${q_name}_${src_ver}_${chroot_arch}.deb"
 
+    iso-prepare
 }
-    
+
+# add a preseed.cfg file (should be inside $sdk_path
+iso-add-preseed() {
+    fn iso-add-preseed
+    req=(chroot_arch)
+    iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
+    freq=(chroot/$chroot_arch/$iso/README.html)    
+    ckreq
+
+
+    root=$sdk_path/chroot/$chroot_arch
+    iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
+
+    q_name=$1
+
+    [[ -r $q_name ]] || {
+        error "preseed file not found $q_name"
+        return 1
+    }
+
+
+    act "Adding preseed to $release $chroot_arch iso: $q_name"
+
+    # saves it in the root of the iso for consultation
+    sudo cp $q_name $root/$iso/preseed.cfg
+
+    # prepare the script to substitute initrds
+    tmp=`mktemp`
+    cat <<EOF >> $tmp
+#!/bin/zsh
+
+initrds=\`find /$iso -name initrd.gz\`
+for i in \${(f)initrds}; do
+    print "Replacing \$i"
+    rm -rf /usr/src/devuan-iso/initrd-tmp
+    mkdir -p /usr/src/devuan-iso/initrd-tmp
+    pushd /usr/src/devuan-iso/initrd-tmp
+    gzip -d < \$i | cpio --extract  --make-directories --no-absolute-filenames
+    cp /$iso/preseed.cfg .
+    rm -f \$i
+    find . | cpio -H newc --create  | gzip -9 > \$i
+    print "Replaced \$i"
+    popd
+    rm -rf /usr/src/devuan-iso/initrd-tmp
+done
+EOF
+    chmod +x $tmp
+    sudo mv $tmp $root/usr/src/devuan-iso/$release-$chroot_arch-preseed-script
+    chdo /usr/src/devuan-iso/$release-$chroot_arch-preseed-script
+
+    iso-prepare
+
+    notice "Done adding preseed $q_name"
+}
     
 
 iso-import() {
@@ -108,7 +162,7 @@ iso-replace-packages() {
     
     typeset -A dvn_builds
     # gather a map of builds we have locally
-    sdir_f=`find $sdir -type f -name "*.deb"`
+    sdir_f=`find $sdir -type f -name "*deb"`
     for s in ${(f)sdir_f}; do
         pname=`basename $s | file-to-name`
         # check version differences too
@@ -119,11 +173,14 @@ iso-replace-packages() {
 
     typeset -A deb_builds
     # gather a map of packages in the iso
-    ddir_f=`find $root/$iso/pool -type f -name "*.deb"`
+    ddir_f=`find $root/$iso/pool -type f -name "*deb"`
     for d in ${(f)ddir_f}; do
         pname=`basename $d | file-to-name`
         deb_builds+=($pname $d)
     done
+
+    # make sure the destination dir for our packages exists
+    sudo mkdir -p $root/$iso/pool/main/devuan
 
     c=0
     for deb in ${(k)deb_builds}; do
