@@ -25,7 +25,7 @@ release-config() {
     fn release-config
     req=(chroot_arch)
     freq=(chroot/$chroot_arch)
-    reqck
+    reqck || return $?
 
     release $@
 
@@ -254,7 +254,7 @@ release-mirror() {
     fn release-config
     req=(chroot_arch)
     freq=(chroot/$chroot_arch/mirrors/devuan/.exclude)
-    reqck
+    reqck || return $?
 
     notice "Starting to mirror release $iso_arch"
 

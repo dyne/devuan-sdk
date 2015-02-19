@@ -40,7 +40,7 @@ iso-add-package() {
     iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
     freq=(builds/$src_name/${q_name}_${src_ver}_${chroot_arch}.deb
         chroot/$chroot_arch/$iso/README.html)
-    ckreq
+    reqck || return $?
 
     act "Adding package to $release $chroot_arch iso: "
 
@@ -58,7 +58,7 @@ iso-add-preseed() {
     req=(chroot_arch)
     iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
     freq=(chroot/$chroot_arch/$iso/README.html)    
-    ckreq
+    reqck || return $?
 
 
     root=$sdk_path/chroot/$chroot_arch
@@ -112,7 +112,7 @@ iso-rm-preseed() {
     req=(chroot_arch)
     iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
     freq=(chroot/$chroot_arch/$iso/README.html)    
-    ckreq
+    reqck || return $?
 
 
     root=$sdk_path/chroot/$chroot_arch
@@ -155,7 +155,7 @@ EOF
 iso-import() {
     fn iso-import
     req=(release installer chroot_arch)
-    ckreq
+    reqck || return $?
 
     notice "Downloading Debian netinst iso"
     act "$installer"
@@ -198,7 +198,7 @@ iso-replace-packages() {
     root=$sdk_path/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
     freq=(chroot/$chroot_arch/$iso/README.html)
-    ckreq
+    reqck || return $?
 
     sdir=${1:-$sdk_path/builds}
 
@@ -259,7 +259,7 @@ iso-prepare() {
     root=$sdk_path/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
     freq=(chroot/$chroot_arch/$iso/README.html)
-    ckreq
+    reqck || return $?
 
     notice "Indexing all installer packages"
 
@@ -378,7 +378,7 @@ iso-make() {
     root=$sdk_path/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-netinst
     freq=(chroot/$chroot_arch/$iso/README.html)
-    ckreq
+    reqck || return $?
 
     notice "Toasting netinst for $release $chroot_arch"
 
