@@ -138,7 +138,6 @@ chroot-enter() {
     freq=(chroot/$chroot_arch/etc/passwd)
     reqck || return $?
 
-    
     schroot -c devuan-$chroot_arch -u root -d /root -s /bin/bash
 
 }
@@ -194,6 +193,18 @@ EOF
 
             notice "Local builds no more available in chroot/$chroot_arch"
 
+            ;;
+        refresh|reset|reload)
+            
+            # update local repository
+            pushd $sdk_path/builds
+            rm -f Packages.xz
+            dpkg-scanpackages . | awk '
+/Filename:/ { gsub(/\.\//, "", $2); print $0; next }
+{ print $0 }' | xz -9 > Packages.xz
+            popd
+
+            chdo apt-get update
             ;;
         *)
             warn "usage: server-local-repo [ on | off ]"

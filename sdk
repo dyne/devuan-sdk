@@ -38,7 +38,6 @@ vars+=(debug cur_fun)
 # global variables
 vars+=(sdk_path)
 typeset -h sdk_loaded
-typeset -a cmd_line
 
 # package import variables
 vars+=(source_url)
@@ -55,8 +54,8 @@ vars+=(chroot_arch chroot_shell)
 # build variables
 vars+=(repo_name repo_ver repo_deps build_ver orig_name)
 
-# release variables
-vars+=(iso_arch)
+# iso variables
+vars+=(iso_arch iso_type)
 
 # function requirement checks
 arrs+=(req freq)
@@ -95,7 +94,7 @@ dump status() {
 
 # unset DEBUG_BEFORE_CMD
 TRAPDEBUG() {
-    RPROMPT="${repo_name:-$src_name} ${repo_ver:-$src_ver} ${chroot_arch}"
+    RPROMPT="${repo_name:-$src_name} ${repo_ver:-$src_ver} ${chroot_arch} ${iso_type}"
 }
 zerr() { 
     error "${cur_fun}() :: error reported, operation aborted."

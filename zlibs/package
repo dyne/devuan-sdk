@@ -181,6 +181,7 @@ package() {
     package-query-debian
     # at this point we know the src_name
 
+    src_name=${src_name:-$q_name}
     notice "Source selected: $src_name"
 
     if [[ -r $sdk_path/sources/$src_dsc ]]; then

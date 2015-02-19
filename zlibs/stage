@@ -94,3 +94,11 @@ stage package-stage() {
     return 0
 
 }
+
+# temporary note to self:
+# After new versions are merged in current stages one can use:
+# $ git checkout <tree-ish> -- <file1> ...
+# (tree-ish can be a branch name, hash, tag, or any other reference form
+# git understands).
+# With the version of git in Jessie, this will checkout the files specified
+# and add them to the stage

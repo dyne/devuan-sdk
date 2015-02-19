@@ -1,6 +1,8 @@
 #!/usr/bin/env zsh
 
 # Devuan SDK configuration
+# safe to leave untouched
+
 # syntax: variable=value
 # (no spaces before and after the equal sign)
 
@@ -8,13 +10,13 @@ mirror=http://ftp.debian.org/debian/
 release=jessie
 section=main
 
+
 # TODO change with final release of Debian when ready
-installer=http://devuan.org
+installer=http://mirror.debianfork.org
 # amd64/iso-cd/debian-jessie-DI-rc1-amd64-netinst.iso
 
 # deboostrap settings for chroots
 chroot_include=bzip2,zsh,vim-nox,less,dialog,sysvinit,debian-keyring,apt-utils,genisoimage
 chroot_exclude=systemd,systemd-sysv,libsystemd0
-# safe to leave untouched
 chroot_variant=buildd
 chroot_comp=main # components
