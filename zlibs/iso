@@ -39,7 +39,7 @@ iso-add-package() {
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
     pname=$1
     freq=(builds/$pname chroot/$chroot_arch/$iso/README.html)
-    ckreq
+    reqck || return $?
 
     notice "Adding package to $release $chroot_arch $iso_type: $pname"
 
@@ -64,7 +64,7 @@ iso-add-preseed() {
     req=(chroot_arch)
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
     freq=(chroot/$chroot_arch/$iso/README.html)    
-    ckreq
+    reqck || return $?
 
 
     root=$sdk_path/chroot/$chroot_arch
@@ -116,7 +116,7 @@ iso-rm-preseed() {
     req=(chroot_arch)
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
     freq=(chroot/$chroot_arch/$iso/README.html)    
-    ckreq
+    reqck || return $?
 
 
     root=$sdk_path/chroot/$chroot_arch
@@ -157,7 +157,7 @@ EOF
 iso-import() {
     fn iso-import
     req=(release installer chroot_arch)
-    ckreq
+    reqck || return $?
 
     iso_type=${1:-netinst}
     case $iso_type in
@@ -217,7 +217,7 @@ iso-replace-packages() {
     root=$sdk_path/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
     freq=(chroot/$chroot_arch/$iso/README.html)
-    ckreq
+    reqck || return $?
 
     sdir=${1:-$sdk_path/builds}
 
@@ -285,7 +285,7 @@ iso-prepare() {
     root=$sdk_path/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
     freq=(chroot/$chroot_arch/$iso/README.html)
-    ckreq
+    reqck || return $?
 
     notice "Indexing all installer packages"
 
@@ -404,7 +404,7 @@ iso-make() {
     root=$sdk_path/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
     freq=(chroot/$chroot_arch/$iso/README.html)
-    ckreq
+    reqck || return $?
 
     iso-prepare
 

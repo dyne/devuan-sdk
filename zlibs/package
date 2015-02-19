@@ -91,7 +91,7 @@ BEGIN { found=0 }
 version() { 
     fn version
     req=(src_name)
-    reqck
+    reqck || return $?
 
     q_ver="$1"
 
@@ -207,7 +207,7 @@ package() {
 import package-import() {
     fn package-import
     req=(src_name src_ver src_files)
-    reqck
+    reqck || return $?
 
     notice "Importing package: $src_name"
 
@@ -265,7 +265,7 @@ verify package-verify() {
     fn package-verify
     req=(src_dsc)
     freq=(sources/$src_dsc)
-    reqck
+    reqck || return $?
 
     notice "Verifying signatures for $src_name $src_ver"
     local _dsc
@@ -295,7 +295,7 @@ package-unpack() {
     fn package-unpack
     req=(src_orig src_dsc src_files)
     freq=(sources/$src_orig)
-    reqck
+    reqck || return $?
 
     act "Decompressing source $src_name $src_ver"
     pushd $sdk_path/sources

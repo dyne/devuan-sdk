@@ -25,7 +25,7 @@ build auto-build() {
     req=(src_name src_ver chroot_arch)
     freq=(stage/$src_name/debian/changelog
         chroot/$chroot_arch/etc/passwd)
-    reqck
+    reqck || return $?
 
     notice "Building repository: $src_name"
     package $src_name
@@ -54,7 +54,7 @@ build-deps() {
     req=(src_name chroot_arch)
     freq=(stage/$src_name/debian/control
         chroot/$chroot_arch/usr/src/${src_name}-${orig_ver})
-    ckreq
+    reqck || return $?
 
     notice "Installing dependencies for package $src_name in $chroot_arch"
 
@@ -116,7 +116,7 @@ build-clean() {
     req=(chroot_arch src_name src_ver orig_ver)
     freq=(stage/$src_name/debian/control
         chroot/$chroot_arch/etc/passwd)
-    ckreq
+    reqck || return $?
 
     orig_ver=${src_ver%-*}
 
@@ -131,7 +131,7 @@ build-sync() {
     req=(chroot_arch src_name src_ver orig_ver)
     freq=(stage/$src_name/debian/control
         chroot/$chroot_arch/etc/passwd)
-    ckreq
+    reqck || return $?
 
     orig_ver=${src_ver%-*}
 
@@ -153,7 +153,7 @@ build-pack-orig() {
     orig_ver=${src_ver%-*}
     freq=(stage/$src_name/debian/control
         chroot/$chroot_arch/usr/src/${src_name}-${orig_ver})
-    ckreq
+    reqck || return $?
 
     act "Pack orig tarball in chroot"
     schroot -c devuan-$chroot_arch -u root \
@@ -168,7 +168,7 @@ build-pack-debian() {
     req=(chroot_arch src_name src_ver)
     freq=(stage/$src_name/debian/control
         chroot/$chroot_arch/usr/src/${src_name}-${orig_ver})
-    ckreq
+    reqck || return $?
     orig_ver=${src_ver%-*}
 
     act "Pack debian tarball in chroot"
@@ -186,7 +186,7 @@ build-start() {
     req=(src_name chroot_arch orig_ver)
     orig_ver=${src_ver%-*}
     freq=(chroot/$chroot_arch/usr/src/$src_name-$orig_ver)
-    ckreq
+    reqck || return $?
 
     notice "Starting build of ${src_name}-${src_ver} for $chroot_arch"
     # launch dpkg-buildpackage in chroot
@@ -201,7 +201,7 @@ build-retry() {
     req=(src_name chroot_arch orig_ver)
     orig_ver=${src_ver%-*}
     freq=(chroot/$chroot_arch/usr/src/$src_name-$orig_ver)
-    ckreq
+    reqck || return $?
 
     notice "Retrying build of ${src_name}-${src_ver} for $chroot_arch"
 
@@ -221,7 +221,7 @@ build-finish() {
     req=(src_name chroot_arch orig_ver)
     freq=(chroot/$chroot_arch/etc/passwd
         $src/${src_name}_${src_ver}_${chroot_arch}.changes)
-    ckreq
+    reqck || return $?
 
     notice "Finishing build $src_name versioned $src_ver"
 
@@ -277,7 +277,7 @@ build-sign() {
     fn build-sign
     req=(src_name src_ver chroot_arch)
     freq=(builds/$src_name/${src_name}_${src_ver}_${chroot_arch}.changes)
-    ckreq
+    reqck || return $?
 
     notice "Signing: $src_name $src_ver $chroot_arch"
 

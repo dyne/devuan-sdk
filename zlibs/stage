@@ -25,7 +25,7 @@ get_staged_name() {
     fn get_staged_name
     req=(q_name)
     freq=(stage/$src_name/debian/control)
-    reqck
+    reqck || return $?
 
     staged_name=`cat $sdk_path/stage/$repo_name/debian/control | awk '
 /^Source: / { print $2; exit }'`
@@ -36,7 +36,7 @@ get_staged_version() {
     fn get_staged_version
     req=(src_name)
     freq=(stage/$src_name/debian/changelog)
-    reqck
+    reqck || return $?
 
         staged_ver=`awk '
 /^'"$orig_name"'/ {
@@ -53,7 +53,7 @@ stage package-stage() {
     fn package-stage
     req=(src_name src_dest)
     freq=(sources/$src_dsc)
-    reqck
+    reqck || return $?
 
     package-unpack
 

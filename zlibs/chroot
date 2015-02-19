@@ -52,7 +52,7 @@ chroot arch() {
 chroot-config() {
     fn chroot-config
     req=(chroot_arch)
-    reqck
+    reqck || return $?
 
     [[ -r /etc/schroot/chroot.d/devuan-$chroot_arch ]] && {
         warn "Chroot configuration already existing: /etc/schroot/chroot.d/devuan-$chroot_arch"
@@ -86,7 +86,7 @@ EOF
 chroot-create() {
     fn chroot-create
     req=(chroot_arch)
-    reqck
+    reqck || return $?
 
     chroot-config
 
@@ -126,7 +126,7 @@ chdo() {
     fn chdo
     req=(chroot_arch)
     freq=(chroot/$chroot_arch/etc/passwd)
-    reqck
+    reqck || return $?
 
     schroot -c devuan-$chroot_arch -s $chroot_shell \
         -u root -d /root -- $@
@@ -136,7 +136,7 @@ chroot-enter() {
     fn chroot-enter
     req=(chroot_arch)
     freq=(chroot/$chroot_arch/etc/passwd)
-    reqck
+    reqck || return $?
 
     schroot -c devuan-$chroot_arch -u root -d /root -s /bin/bash
 
@@ -147,7 +147,7 @@ serve-local-repo() {
     fn serve-local-repo
     req=(chroot_arch)
     freq=(chroot/$chroot_arch/etc/apt/sources.list)
-    ckreq
+    reqck || return $?
 
     tmp=`mktemp`
     root=$sdk_path/chroot/$chroot_arch
