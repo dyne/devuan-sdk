@@ -30,7 +30,7 @@ gpg="gpg2 --no-default-keyring --keyring $sdk_path/.gnupg/debian-keyring.gpg --b
 package-query-debian() {
     fn package-query-debian
     req=(q_name)
-    reqck
+    reqck || return $?
 
     rel=${1:-$release}
 
