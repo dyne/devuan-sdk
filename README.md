@@ -68,7 +68,7 @@ To burn a new iso with hasciicam inside:
 
 ```
 iso-import
-iso-add hasciicam
+iso-add-package hasciicam
 auto-iso
 ```
 
