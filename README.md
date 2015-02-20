@@ -8,15 +8,28 @@ This set of scripts aid package maintainers to import sources from
 Debian, verify signatures and stage them to be imported inside
 Devuan's git repository. 
 
+BEWARE this is still in development and does not addresses strictly
+security issues nor wrong usage. USE AT YOUR OWN RISK and in any case
+DON'T USE ON YOUR PERSONAL MACHINE.
+If you try this fast and loose use a disposable system ;^)
+
 # Requirements
 
 This SDK is designed to be used interactively from a terminal as well
 from shell scripts.
 
-Using Debian or Ubuntu, install `zsh` `gnupg2` `schroot` `debootstrap`.
+Using Debian or Ubuntu, install `sudo` `zsh` `gnupg2` `schroot` `debootstrap`.
 
 The Devuan SDK is a sort of interactive shell extension, all the
 instructions below should be followed while already running in ZSh.
+
+Sudo will be used to elevate the sdk user to superuser privileges,
+make sure the following commands are autorized in your `/etc/sudoers`
+file. For instance assuming your username is `luther` then it should
+have:
+
+```
+Cmnd_Alias  DEVUAN = /usr/sbin/debootstrap, /usr/bin/rsync, /usr/bin/test, /usr/bin/curl
 
 # Quick start
 
@@ -26,8 +39,14 @@ Then clone the SDK repository:
 git clone https://git.devuan.org/devuan/devuan-sdk.git
 ```
 
-Then while running into Zsh step inside the sdk, "source" it and
-initialize it:
+Then run ZSh. In case you have conflicting extensions on your zsh
+configuration, it may be needed to run from a vanilla one, using:
+
+```
+sudo zsh --no-rcs
+```
+
+then step inside the sdk, "source" it and initialize it:
 
 ```
 cd devuan-sdk
