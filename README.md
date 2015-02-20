@@ -23,13 +23,15 @@ Using Debian or Ubuntu, install `sudo` `zsh` `gnupg2` `schroot` `debootstrap`.
 The Devuan SDK is a sort of interactive shell extension, all the
 instructions below should be followed while already running in ZSh.
 
-Sudo will be used to elevate the sdk user to superuser privileges,
-make sure the following commands are autorized in your `/etc/sudoers`
-file. For instance assuming your username is `luther` then it should
-have:
+Sudo will be used to elevate the sdk user to superuser privileges only
+when needed. In some cases one needs to make sure the following commands are autorized in your
+`/etc/sudoers` file. For instance assuming your username is `luther`
+then it should have:
 
 ```
 Cmnd_Alias  DEVUAN = /usr/sbin/debootstrap, /usr/bin/rsync, /usr/bin/test, /usr/bin/curl
+luther  ALL= NOPASSWD: DEVUAN
+```
 
 # Quick start
 
