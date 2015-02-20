@@ -18,15 +18,21 @@ If you try this fast and loose use a disposable system ;^)
 This SDK is designed to be used interactively from a terminal as well
 from shell scripts.
 
-Using Debian or Ubuntu, install `sudo` `zsh` `gnupg2` `schroot` `debootstrap`.
+Using Debian or Ubuntu, install `sudo` `zsh` `gnupg2` `schroot`
+`debootstrap` `dpkg-dev`.
 
-The Devuan SDK is a sort of interactive shell extension, all the
-instructions below should be followed while already running in ZSh.
+The last one it may be called `dpkg` or `dpkg-devtools` on other
+systems like Arch and Parabola.
+
+The Devuan SDK is a fresh take to old tasks :^) acting as a sort of
+interactive shell extension. All the instructions below should be
+followed while already running in ZSh. A clear advantage is having tab
+completion on commands, when running it interactively.
 
 Sudo will be used to elevate the sdk user to superuser privileges only
-when needed. In some cases one needs to make sure the following commands are autorized in your
-`/etc/sudoers` file. For instance assuming your username is `luther`
-then it should have:
+when needed. In some cases one needs to make sure the following
+commands are autorized in your `/etc/sudoers` file. For instance
+assuming your username is `luther` then it should have:
 
 ```
 Cmnd_Alias  DEVUAN = /usr/sbin/debootstrap, /usr/bin/rsync, /usr/bin/test, /usr/bin/curl
