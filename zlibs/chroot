@@ -30,6 +30,7 @@ chroot arch() {
         i386|amd64) chroot_arch=$1 ;;
         *)
             warn "Chroot architecture not supported $1"
+            warn "Only architectures supported: i386 or amd64"
             act -n "Existing chroots: "
             schroot -l 2>/dev/null | awk -F: '
 /devuan/ {
