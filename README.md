@@ -65,7 +65,27 @@ init
 Once `init` is done go into the `stage` directory and you'll see all
 the Devuan repositories will be there.
 
-To import a new package (lets pick hasciicam):
+To proceed further we need to build our software packages and toast
+them into an installer iso. First of all, choose the architecture for
+which we are building. At the moment one can choose between `amd64`
+and `i386`, we will choose the latter:
+
+```
+arch i386
+chroot-create
+```
+
+Beware, this will take long: will run debootstrap, download Debian's
+netinst iso and customize it as needed.
+
+Consider a single sdk can create more than one chroot for multiple
+architectures and they keep existing between builds. Switching is done
+via `arch`.
+
+Now let's imagine we need to import a new package from Debian,
+something that has not yet being staged in Devuan. Let's pick
+`hasciicam`:
+
 
 ```
 package hasciicam
@@ -75,29 +95,43 @@ verify
 stage
 ```
 
-Then the hasciicam sourcecode will be in stage/ and checked in
-git. New versions will be checked in as branches.
+Then the hasciicam sourcecode will be in stage/ and checked in git. If
+the package `hasciicam` is already staged in Devuan, then an error
+would be given while importing the same version, but different
+versions would be checked in as branches.
 
-On the other hand, to create a chroot and burn an iso:
+Ok now if we have a package correctly staged then its name and version
+are shown at right of prompt, as well the architecture we are
+targeting the build. Then launch the build with:
 
 ```
-chroot i386
-chroot-create
+build
 ```
 
-Beware, this will take long: will run debootstrap, download Debian's
-netinst iso and customize it as needed.
+If the sourcecode and the package are good, it will end up with
+success and the packages will be found in the `builds/` subdirectory
+inside the sdk.
 
-Back to our source package, to build it into the chroot we've just
-created now launch `build`.
-
-To burn a new iso with hasciicam inside:
+Now to insert the hasciicam package inside our new installer iso lets
+first download the current installer in Debian (quick way):
 
 ```
 iso-import
+```
+
+Then add the hasciicam package to it:
+
+```
 iso-add-package hasciicam
+```
+
+And at last launch the chain of commands leading to the final iso
+
+```
 auto-iso
 ```
+
+The results will be in the sdk subdir `iso/`.
 
 Pretty easy no? This is the basic usage. SDK has also functions to
 locally compile the packages into schroot of various architectures and
