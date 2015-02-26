@@ -19,7 +19,7 @@ This SDK is designed to be used interactively from a terminal as well
 from shell scripts.
 
 Using Debian or Ubuntu, install `sudo` `zsh` `gnupg2` `schroot`
-`debootstrap` `dpkg-dev`.
+`debootstrap` `dpkg-dev` `curl` `rsync`.
 
 The last one it may be called `dpkg` or `dpkg-devtools` on other
 systems like Arch and Parabola.
