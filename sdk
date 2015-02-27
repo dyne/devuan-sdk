@@ -45,7 +45,7 @@ vars+=(source_url)
 vars+=(pkg_name q_name q_ver)
 vars+=(src_name src_ver src_dest orig_ver)
 vars+=(src_orig src_dsc src_debian)
-vars+=(staged_ver)
+vars+=(staged_ver staged_githead)
 arrs+=(src_files)
 typeset -A hash_map
 

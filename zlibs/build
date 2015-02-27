@@ -20,7 +20,7 @@
 # this source code; if not, write to: Free Software Foundation, Inc.,
 # 675 Mass Ave, Cambridge, MA 02139, USA.
 
-build auto-build build-auto() {
+build auto-build build-auto build-force() {
     fn build
     req=(chroot_arch)
     freq=(chroot/$chroot_arch/etc/passwd)
@@ -28,6 +28,7 @@ build auto-build build-auto() {
 
     pushd $sdk_path
 
+    # realize what we want to build
     target=()
     if [[ "$1" = "all" ]]; then
 
@@ -53,9 +54,18 @@ build auto-build build-auto() {
 
     fi
 
-    # update the system in the chroot
-    schroot -c devuan-$chroot_arch -u root \
-        apt-get update
+    # check if the package is staged
+    [[ -r $sdk_path/stage/$src_name/debian/changelog ]] || {
+        error "$src_name package not yet staged"
+        return 1
+    }
+
+    
+    # key/value record of built heads
+    typeset -A heads
+    heads=()
+    [[ -r $sdk_path/builds/heads.zkv ]] && \
+        zkv-load $sdk_path/builds/heads.zkv
 
     for t in $target; do
 
@@ -64,7 +74,30 @@ build auto-build build-auto() {
         orig_ver=${src_ver%-*}
         act "upstream version: $orig_ver"
         act "package version: $src_ver"
+        get_staged_githead
+        act "staged git head: $staged_githead"
 
+        # check if the current git head is already built
+        built_head=${heads[${src_name}-${src_ver}]}
+        act "builds git head: ${built_head}"
+        [[ "$staged_githead" = "${built_head}" ]] && {
+            # already build, skip
+            notice "Current staged source is already built"
+            if [[ "$0" = "build-force" ]]; then
+                act "forcing rebuild of $src_name"
+            else
+                act "skipping. to force rebuild use: build-force $src_name"
+                continue
+            fi
+        }
+
+        # check if the build should be skipped
+        [[ -r $sdk_path/stage/skip-$src_name ]] && [[ "$0" != "build-force" ]] && {
+            act "staged source tagged to be skip: stage/skip-$src_name"
+            act "to force build delete skip file or use: build-force $src_name"
+            continue
+        }
+            
         build-clean
 
         build-sync
@@ -79,7 +112,10 @@ build auto-build build-auto() {
 
         build-finish
 
-        act "$t done building"
+        notice "$t done building"
+        act "saving built git head: $staged_githead"
+        heads+=(${src_name}-${src_ver} $staged_githead)
+        zkv-save heads $sdk_path/builds/heads.zkv
     done
 
     popd

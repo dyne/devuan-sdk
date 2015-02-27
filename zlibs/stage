@@ -48,6 +48,17 @@ get_staged_version() {
 
 }
    
+get_staged_githead() {
+    fn get_staged_githead
+    req=(src_name)
+    freq=(stage/$src_name/debian/changelog)
+    reqck || return $?
+
+    pushd $sdk_path/stage/$src_name
+    staged_githead=`git log | awk '{ print $2; exit 0 }'`
+    popd
+}
+   
 
 stage package-stage() {
     fn package-stage

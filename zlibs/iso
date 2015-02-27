@@ -20,6 +20,18 @@
 # this source code; if not, write to: Free Software Foundation, Inc.,
 # 675 Mass Ave, Cambridge, MA 02139, USA.
 
+iso() {
+    case $1 in
+        netinst|xfce)
+            iso_type=$1
+            ;;
+        *)
+            error "iso type not supported: $1"
+            return 1
+            ;;
+    esac
+}
+
 auto-iso() {
     fn iso
 
