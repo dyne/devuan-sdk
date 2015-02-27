@@ -1,0 +1,98 @@
+#!/usr/bin/env zsh
+
+# Key/Value file storage using ZSh associative maps
+
+# Copyright (C) 2015 Dyne.org Foundation
+#
+# Designed, written and maintained by Denis Roio <jaromil@dyne.org>
+#
+# This source code is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This source code is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  Please refer
+# to the GNU Public License for more details.
+#
+# You should have received a copy of the GNU Public License along with
+# this source code; if not, write to: Free Software Foundation, Inc.,
+# 675 Mass Ave, Cambridge, MA 02139, USA.
+
+# map arrays must be globally defined outside
+
+# requires zmodload zsh/system
+
+# load a map from a file
+# map must be already instantiated with typeset -A by called
+# name of map is defined inside the file
+zkv-load() {
+    file=$1
+    [[ "$file" = "" ]] && {
+        error "zkv-open() missing argument: file-path"
+        return 1    }
+    [[ -r "$file" ]] || {
+        error "zkv-open() file not found $file"
+        return 1    }
+    [[ -s "$file" ]] || {
+        error "zkv-open() file is empty"
+        return 1    }
+    source $file
+}
+
+# save a map in a file
+zkv-save() {
+    _map=$1
+    _path=$2
+    [[ "$_path" = "" ]] && {
+        error "zkv-close() missing argument: map-name path-to-file"
+        return 1
+    }
+    [[ -r $_path ]] && {
+        func "zkv-close() overwriting $path"
+        func "backup turd left behind"
+        mv $_path $_path~
+    }
+    touch $_path
+
+    # wondering about http://www.zsh.org/mla/users/2015/msg00286.html
+    # meanwhile solved using a double array, wasting a full map memcpy
+    _karr=(${(Pk)_map})
+    _varr=(${(Pv)_map})
+    _num="${#_karr}"
+    for c in {1..$_num}; do        
+        # can also be cat here, however for speed we use builtins
+        # switch to cat if compatibility is an issue
+        sysread -o 1 <<EOF >> $_path
+$_map+=("${_karr[$c]}" "${(v)_varr[$c]}")
+EOF
+    done
+    func "$_num key/values stored in $_path"
+}
+
+
+# debugging different approaches
+_zkv-test() {
+    mappa+=(key1 value1)
+    mappa+=(key2 value2)
+    mappa+=(key3 value3)
+
+    print " = testing pointer approach"
+    _map=mappa
+    _num="${(P)#_map}"
+
+    for c in {1..$_num}; do
+        print "$c/$_num: ${(Pk)${_map}[$c]} ${(Pv)${_map}[$c]}"
+    done
+
+    print " = testing double array approach"
+    _karr=(${(k)mappa})
+    _varr=(${(v)mappa})
+    _num="${#_karr}"
+
+    for c in {1..$_num}; do
+        print "$c/$_num: ${_karr[$c]} ${(v)_varr[$c]}"
+    done
+
+}    
