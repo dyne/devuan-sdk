@@ -37,6 +37,7 @@ vars+=(debug cur_fun)
 
 # global variables
 vars+=(sdk_path)
+vars+=(last_notice last_act last_func)
 typeset -h sdk_loaded
 
 # package import variables
@@ -97,7 +98,10 @@ TRAPDEBUG() {
     RPROMPT="${repo_name:-$src_name} ${repo_ver:-$src_ver} ${chroot_arch} ${iso_type}"
 }
 zerr() { 
-    error "${cur_fun}() :: error reported, operation aborted."
+    error "error in: ${cur_fun}"
+    warn "$last_notice"
+    warn "$last_act"
+    error "Error reported, operation aborted."
     return 1
 }
 TRAPZERR() { zerr; return $? }

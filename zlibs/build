@@ -20,33 +20,69 @@
 # this source code; if not, write to: Free Software Foundation, Inc.,
 # 675 Mass Ave, Cambridge, MA 02139, USA.
 
-build auto-build() {
+build auto-build build-auto() {
     fn build
-    req=(src_name src_ver chroot_arch)
-    freq=(stage/$src_name/debian/changelog
-        chroot/$chroot_arch/etc/passwd)
+    req=(chroot_arch)
+    freq=(chroot/$chroot_arch/etc/passwd)
     reqck || return $?
 
-    notice "Building repository: $src_name"
-    package $src_name
-    orig_ver=${src_ver%-*}
-    act "upstream version: $orig_ver"
-    act "package version: $src_ver"
+    pushd $sdk_path
 
-    build-clean
+    target=()
+    if [[ "$1" = "all" ]]; then
 
-    build-sync
+        notice "Building all staged repositories"
+        stages=`find stage -maxdepth 1 -type d`
+        for s in ${(f)stages}; do
+            [[ "$s" = "stage" ]] && continue
+            target+=(${s[(ws:/:)2]})
+        done
+        act "${#target} source packages found on stage"
 
-    build-deps
+    elif [[ "$1" = "" ]]; then
 
-    build-pack-orig
+        [[ "$src_name" = "" ]] && {
+            error "Cannot build, no package selected"
+            return 1
+        }
+        target=($src_name)
 
-    build-pack-debian
+    else
 
-    build-start
+        target=($1)
 
-    build-finish
+    fi
 
+    # update the system in the chroot
+    schroot -c devuan-$chroot_arch -u root \
+        apt-get update
+
+    for t in $target; do
+
+        notice "Building repository: $t"
+        package $t
+        orig_ver=${src_ver%-*}
+        act "upstream version: $orig_ver"
+        act "package version: $src_ver"
+
+        build-clean
+
+        build-sync
+
+        build-deps
+
+        build-pack-orig
+
+        build-pack-debian
+
+        build-start
+
+        build-finish
+
+        act "$t done building"
+    done
+
+    popd
 }
 
 build-deps() {
@@ -66,7 +102,7 @@ build-deps() {
 
     repo_deps=(`print ${depline##*dependencies:} | sed -e 's/([^()]*)//g' -e 's/\[[^()]*\]//g'`)
 
-    TRAPZERR() { 
+    TRAPZERR() {
         error "Error reported, operation aborted."
         return 1
     }
@@ -162,7 +198,7 @@ build-pack-orig() {
         ${src_name}-${orig_ver}
 
 }
-    
+
 build-pack-debian() {
     fn build-pack-debian
     req=(chroot_arch src_name src_ver)
@@ -246,7 +282,7 @@ build-finish() {
         # now replaced with Package-Type
         # ptype=`cat $sdk_path/$src/$src_name-$orig_ver/debian/control | awk '
 # /Package-Type:/ { print $2 }'`
-        
+
         [[ -r $sdk_path/$src/${b}_${src_ver}_${arch}.udeb ]] && {
             sudo \
                 cp $sdk_path/$src/${b}_${src_ver}_${arch}.udeb \
@@ -289,10 +325,10 @@ build-sign() {
 
 # obsolete snippets
 
-        
+
     #  ${caz#*\(}  ${caz%\)*}
 
-    
+
 _build() {
 
     repo_dsc_file=`find $sdk_path/sources -maxdepth 1 \

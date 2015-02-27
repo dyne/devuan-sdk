@@ -52,12 +52,15 @@ function _msg() {
             command+=" -n"; pchars=" > "; pcolor="yellow"
             ;;
         message)
+            last_act="$msg"
             pchars=" . "; pcolor="white"; message="$fg_no_bold[$pcolor]$msg$reset_color"
             ;;
         verbose)
+            last_func="$msg"
             pchars="[D]"; pcolor="blue"
             ;;
         success)
+            last_notice="$msg"
             pchars="(*)"; pcolor="green"; message="$fg_no_bold[$pcolor]$msg$reset_color"
             ;;
         warning)

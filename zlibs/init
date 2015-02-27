@@ -47,9 +47,17 @@ init-repos() {
     pushd $sdk_path/stage
     for i in ${(f)repos}; do
         base=`basename $i`
-        [[ -d $base ]] || {
+        if [[ -d $base ]]; then
+
+            pushd $base
+            git pull
+            popd
+
+        else
+
             git clone ${git}/${base}.git
-        }
+
+        fi
     done
     popd
 }
