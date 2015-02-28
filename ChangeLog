@@ -1,3 +1,8 @@
+# 14 February 2015
+	Mechanism to build packages and import a Debian installer iso to
+	inject them in and toast a new iso. Used to make the first
+	pre-alpha valentine used by Jaromil to declare his love	for Nextime <3
+
 # 6 February 2015
 	Refactoring of the version detection. Stamp of .devuan with original files.
 	Support to import new Debian package versions as versioned branches.

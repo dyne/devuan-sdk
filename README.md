@@ -100,12 +100,12 @@ success and the packages will be found in the `builds/` subdirectory
 inside the sdk.
 
 Now the last step: toast the iso with all the built packages inside.
-First choose what kind of iso is wanted, at the time of writing the
-choices are `netinst` or `xfce` which are both installers and not live
-CDs.
+First choose what kind of seed configuration is wanted, at the time of
+writing the choices are `netinst` or `xfce` which are both installers
+and not live CDs.
 
 ```
-iso xfce
+seed xfce
 ```
 
 Then toast the iso automatically using:
@@ -276,12 +276,11 @@ simple `auto-iso` command (as shown in the quick start guide
 above). Here the breakdown of various steps performed by `auto-iso`:
 
 ```
-iso xfce
+seed xfce
 iso-import
 iso-replace-packages
-iso-add-package loginkit
-iso-add-preseed preseeds/xfce
-iso-prepare
+iso-seed
+iso-index
 iso-make
 ```
 
