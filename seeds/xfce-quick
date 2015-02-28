@@ -11,7 +11,7 @@ devuan-keyring
 loginkit
 
 #+ package del
-systemd
+# systemd
 
 #+ package add
 devuan-keyring
@@ -19,7 +19,6 @@ devuan-baseconf
 sysvinit
 loginkit
 slim
-udev
 
 #+ debian preseed
 d-i debian-installer/locale string en_US
