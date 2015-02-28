@@ -20,34 +20,56 @@
 # this source code; if not, write to: Free Software Foundation, Inc.,
 # 675 Mass Ave, Cambridge, MA 02139, USA.
 
-iso() {
-    case $1 in
-        netinst|xfce)
-            iso_type=$1
-            ;;
-        *)
-            error "iso type not supported: $1"
-            return 1
-            ;;
-    esac
+seed iso() {
+    fn iso
+    freq=(seeds)
+    ckreq
+
+    seeds=`ls $sdk_path/seeds`
+    sel=$1
+
+    # check if selected iso is in preseeds
+    [[ -r $sdk_path/seeds/${sel} ]] || {
+        error "iso type not supported: $1"
+        return 1
+    }
+
+    iso_type=$sel
+    act "Selected iso type: $iso_type"
 }
 
 auto-iso() {
     fn iso
+    req=(iso_type)
+    ckreq
 
-    iso-import $1
+    iso-import
 
     iso-replace-packages
 
-    iso-prepare
+    iso-seed
+
+    iso-index
 
     iso-make
 }
 
+iso-del-package() {
+    fn iso-del-package
+    req=(release chroot_arch iso_type)
+    iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
+    pname=$1
+    freq=(chroot/$chroot_arch/$iso/README.html)
+    reqck || return $?
+
+    notice "Deleting package from $release $chroot_arch $iso_type: $pname"
+    chdo \
+        rm -rf /$iso/pool/main/${pname[1]}/$pname/
+}
 
 iso-add-package() {
     fn iso-add-package
-    req=(chroot_arch src_name src_ver)
+    req=(release chroot_arch iso_type)
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
     pname=$1
     freq=(builds/$pname chroot/$chroot_arch/$iso/README.html)
@@ -168,15 +190,14 @@ EOF
 
 iso-import() {
     fn iso-import
-    req=(release installer chroot_arch)
+    req=(release installer chroot_arch iso_type)
     reqck || return $?
 
-    iso_type=${1:-netinst}
     case $iso_type in
-        netinst)
+        netinst*)
             iso_img=debian-$release-DI-rc1-$chroot_arch-netinst.iso
             ;;
-        xfce)
+        xfce*)
             iso_img=debian-$release-DI-rc1-$chroot_arch-xfce-CD-1.iso
             ;;
         *)
@@ -195,15 +216,17 @@ iso-import() {
     sudo \
         mkdir -p $src/debian-iso/$release-$chroot_arch-$iso_type
 
-    sudo \
-        test -r $src/debian-iso/$iso_img || {
-    notice "Downloading Debian $iso_type iso"
-    act "from: $installer"
-
+    if [[ -r $src/debian-iso/$iso_img ]]; then
+        notice "Iso image found in chroot"
+        ls -lh $src/debian-iso/$iso_img
+    else
+        notice "Downloading Debian $iso_type iso"
+        act "from: $installer"
+        
         sudo \
             curl $debian_iso_url \
             -o $src/debian-iso/$iso_img
-    }
+    fi
 
     notice "Importing Debian $iso_type iso"
     act "release: $release"
@@ -232,11 +255,6 @@ iso-replace-packages() {
     reqck || return $?
 
     sdir=${1:-$sdk_path/builds}
-
-    # first add our own packages
-    iso-add-package devuan-keyring
-    iso-add-package devuan-baseconf
-    iso-add-package sysvinit
 
     notice "Replacing iso packages with those found in $sdir"
     act "release $release arch $chroot_arch"
@@ -291,33 +309,16 @@ iso-replace-packages() {
     notice "$c packages substituted"
 }
 
-iso-prepare() {
-    fn iso-prepare
+iso-index iso-prepare() {
+    fn iso-index
     req=(release chroot_arch)
     root=$sdk_path/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
     freq=(chroot/$chroot_arch/$iso/README.html)
     reqck || return $?
 
-    notice "Indexing all installer packages"
+    notice "Indexing all packages inside the iso"
 
-    sudo chmod u+w $root/$iso
-
-    tmp=`mktemp`
-    cat <<EOF >> $tmp
-systemd
-systemd-sysv
-libsystemd0
-EOF
-    sudo mv $tmp $root/$iso/.disk/base_exclude
-
-    tmp=`mktemp`
-    cat <<EOF >> $tmp
-sysvinit-core
-devuan-baseconf
-devuan-keyring
-EOF
-    sudo mv $tmp $root/$iso/.disk/base_include
     # ?? bzip2
 
     tmp=`mktemp`
@@ -377,9 +378,12 @@ EOF
     # TODO
     # here we grep out systemd from the indices/override this may be a
     # bit too aggressive and it might be better to do it by hand
-    curl $mirror/indices/override.$release.main.gz \
-        | gunzip | grep -v systemd >> $tmp
-    sudo mv $tmp $root/usr/src/devuan-iso/indices/override
+    chdo \
+        rm -f /usr/src/devuan-iso/indices/override
+    tmpoverride=`mktemp`
+    gunzip $sdk_path/seeds/override.$release.main.gz -c >> $tmpoverride
+    sudo \
+        mv $tmpoverride $root/usr/src/devuan-iso/indices/override
 
     schroot -c devuan-$chroot_arch \
         -u root -d $root/usr/src/devuan-iso -- \
@@ -394,7 +398,7 @@ EOF
 APT::FTPArchive::Release::Codename "$release";
 APT::FTPArchive::Release::Origin "Devuan";
 APT::FTPArchive::Release::Components "main";
-APT::FTPArchive::Release::Label "Devuan";
+APT::FTPArchive::Release::Label "$iso_type";
 APT::FTPArchive::Release::Architectures "$chroot_arch";
 APT::FTPArchive::Release::Suite "testing";
 EOF
@@ -410,6 +414,87 @@ EOF
     sudo mv $tmp $root/$iso/dists/$release/Release
 }
 
+# auxiliary function used internally
+# prints out section contents of seed file
+_seed-section() {
+    # $1 seed file
+    # $2 section in seed
+    act "$1"
+    awk 'BEGIN { found=0 }
+/^#\+ '"$1"'/ { found=1; next }
+/^#\+/ { if(found==1) exit 0 }
+/^$/ { next }
+{ if(found==1) print $0 }
+' $sdk_path/seeds/$iso_type
+}
+iso-seed() {
+    fn iso-seed
+    req=(release chroot_arch)
+    root=$sdk_path/chroot/$chroot_arch
+    iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
+    freq=(chroot/$chroot_arch/$iso/README.html)
+    reqck || return $?
+
+    sudo chmod u+w $root/$iso
+
+    notice "Planting iso with seed: $iso_type"
+
+    # here parsing of the selected seeds file is done
+    # every section is marked with a fixed string preceeded by #+
+    # sections are:
+    #+ base exclude
+    #+ base include
+    #+ debian preseed
+    #+ package add
+    #+ package remove
+
+    tmpexclude=`mktemp`
+    _seed-section "base exclude" >> $tmpexclude
+    [[ $debug = 1 ]] && {
+        tmp=`cat $tmpexclude`
+        for i in ${(f)tmp}; do func "$i"; done
+    }
+    sudo mv $tmpexclude $root/$iso/.disk/base_exclude
+
+    tmpinclude=`mktemp`
+   _seed-section "base include" >> $tmpinclude
+    [[ $debug = 1 ]] && {
+        tmp=`cat $tmpinclude`
+        for i in ${(f)tmp}; do func "$i"; done
+    }
+    sudo mv $tmpinclude $root/$iso/.disk/base_include
+
+
+    # delete packages
+    tmpdel=`mktemp`
+    _seed-section "package del" >> $tmpdel
+    pdel=`cat $tmpdel`
+    rm -f $tmpdel
+    for p in ${(f)pdel}; do
+        iso-del-package $p
+    done
+
+    # add packages
+    tmppadd=`mktemp`
+    _seed-section "package add" >> $tmppadd
+    padd=`cat $tmppadd`
+    rm -f $tmppadd
+    for p in ${(f)padd}; do
+        iso-add-package $p
+    done
+
+    # inject preseed from selected seed (iso_type)
+    tmpreseed=`mktemp`
+    _seed-section "debian preseed" >> $tmpreseed
+    [[ $debug = 1 ]] && {
+        tmp=`cat $tmpreseed`
+        for i in ${(f)tmp}; do func "$i"; done
+    }
+    iso-add-preseed $tmpreseed
+    rm -f $tmpreseed
+
+}
+
 iso-make() {
     fn iso-make
     req=(chroot_arch release)
@@ -417,8 +502,6 @@ iso-make() {
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
     freq=(chroot/$chroot_arch/$iso/README.html)
     reqck || return $?
-
-    iso-prepare
 
     notice "Toasting $iso_type for $release $chroot_arch"
 

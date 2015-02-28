@@ -1,0 +1,55 @@
+
+#+ base exclude
+systemd
+systemd-sysv
+libsystemd0
+
+#+ base include
+sysvinit-core
+devuan-baseconf
+devuan-keyring
+loginkit
+
+#+ package del
+systemd
+
+#+ package add
+devuan-keyring
+devuan-baseconf
+sysvinit
+loginkit
+slim
+udev
+
+#+ debian preseed
+d-i debian-installer/locale string en_US
+d-i keyboard-configuration/xkb-keymap select us
+d-i netcfg/choose_interface select auto
+d-i netcfg/get_hostname string devuan
+d-i netcfg/get_domain string devuan.org
+d-i netcfg/hostname string devuan
+
+d-i apt-setup/use_mirror boolean false
+d-i apt-setup/services-select false
+
+d-i clock-setup/utc boolean true
+
+d-i time/zone string EU/Netherlands
+
+d-i clock-setup/ntp boolean true
+
+popularity-contest popularity-contest/participate boolean false
+
+tasksel tasksel/first multiselect standard, desktop
+tasksel tasksel/desktop multiselect xfce4
+d-i pkgsel/include string xfce4-places-plugin openssh-server loginkit
+d-i pkgsel/exclude string systemd
+
+d-i passwd/root-password password devuan
+d-i passwd/root-password-again password devuan
+
+d-i passwd/user-fullname string Devuan User
+d-i passwd/username string devuan
+d-i passwd/user-password password devuan
+d-i passwd/user-password-again password devuan
+

@@ -1,0 +1,4 @@
+
+d-i pkgsel/include string xfce4-places-plugin openssh-server loginkit
+d-i pkgsel/exclude string systemd
+
