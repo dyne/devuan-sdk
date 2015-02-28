@@ -2,11 +2,16 @@
 
 ## Simple (package) development kit
 
-### version 0.3
+### version 0.4
 
 This set of scripts aid package maintainers to import sources from
 Debian, verify signatures and stage them to be imported inside
 Devuan's git repository. 
+
+The Devuan SDK is a fresh take to old tasks :^) acting as a sort of
+interactive shell extension. All the instructions below should be
+followed while already running in ZSh. A clear advantage is having tab
+completion on commands, when running it interactively.
 
 BEWARE this is still in development and does not addresses strictly
 security issues nor wrong usage. USE AT YOUR OWN RISK and in any case
@@ -24,11 +29,6 @@ Using Debian or Ubuntu, install `sudo` `zsh` `gnupg2` `schroot`
 The last one it may be called `dpkg` or `dpkg-devtools` on other
 systems like Arch and Parabola.
 
-The Devuan SDK is a fresh take to old tasks :^) acting as a sort of
-interactive shell extension. All the instructions below should be
-followed while already running in ZSh. A clear advantage is having tab
-completion on commands, when running it interactively.
-
 Sudo will be used to elevate the sdk user to superuser privileges only
 when needed. In some cases one needs to make sure the following
 commands are autorized in your `/etc/sudoers` file. For instance
@@ -41,7 +41,12 @@ luther  ALL= NOPASSWD: DEVUAN
 
 # Quick start
 
-Then clone the SDK repository:
+This is a quick guide to build a Devuan ISO from it sources using our
+SDK, it will require approximatel 4GB space and an Internet
+connection. This guide is not meant for people willing to use Devuan,
+but for package maintainers and Devuan developers.
+
+First clone the SDK repository:
 
 ```
 git clone https://git.devuan.org/devuan/devuan-sdk.git
@@ -62,8 +67,9 @@ source sdk
 init
 ```
 
-Once `init` is done go into the `stage` directory and you'll see all
-the Devuan repositories will be there.
+Init will require an Internet connection to download all Devuan source
+package repositories. Once `init` is done, then the `stage` directory
+will contain all the Devuan source package repositories.
 
 To proceed further we need to build our software packages and toast
 them into an installer iso. First of all, choose the architecture for
@@ -78,60 +84,38 @@ chroot-create
 Beware, this will take long: will run debootstrap, download Debian's
 netinst iso and customize it as needed.
 
-Consider a single sdk can create more than one chroot for multiple
-architectures and they keep existing between builds. Switching is done
-via `arch`.
+Consider a single SDK can create more than one chroot for multiple
+architectures and they keep existing between builds.
+Switching is done via `arch`.
 
-Now let's imagine we need to import a new package from Debian,
-something that has not yet being staged in Devuan. Let's pick
-`hasciicam`:
-
+Now proceed starting the build of all our source packages:
 
 ```
-package hasciicam
-version latest
-import
-verify
-stage
+build all
 ```
 
-Then the hasciicam sourcecode will be in stage/ and checked in git. If
-the package `hasciicam` is already staged in Devuan, then an error
-would be given while importing the same version, but different
-versions would be checked in as branches.
-
-Ok now if we have a package correctly staged then its name and version
-are shown at right of prompt, as well the architecture we are
-targeting the build. Then launch the build with:
-
-```
-build
-```
-
+Also this command will take long and will put your computer to work.
 If the sourcecode and the package are good, it will end up with
 success and the packages will be found in the `builds/` subdirectory
 inside the sdk.
 
-Now to insert the hasciicam package inside our new installer iso lets
-first download the current installer in Debian (quick way):
+Now the last step: toast the iso with all the built packages inside.
+First choose what kind of iso is wanted, at the time of writing the
+choices are `netinst` or `xfce` which are both installers and not live
+CDs.
 
 ```
-iso-import
+iso xfce
 ```
 
-Then add the hasciicam package to it:
-
-```
-iso-add-package hasciicam
-```
-
-And at last launch the chain of commands leading to the final iso
+Then toast the iso automatically using:
 
 ```
 auto-iso
 ```
 
-The results will be in the sdk subdir `iso/`.
+Which will download a Debian iso as template and change it to become a
+systemd-free Devuan.
 
 Pretty easy no? This is the basic usage. SDK has also functions to
 locally compile the packages into schroot of various architectures and
@@ -154,120 +138,69 @@ case you get an error, this might be due to your particular setup of
 Zsh: then try running the sdk from inside a pristine configuration,
 for instance running `zsh --no-rcs`.
 
-## Import a package from Debian
-
-Let's say we want to import the latest version of `nethack-console`
-package from Debian 8.0, verify its signature, unpack it and make it
-into a git repository.
-
-From inside devuan-sdk/ give the following commands:
+Then as usual from inside devuan-sdk/ give the following commands:
 
 ```
 source sdk
-init
 ```
 
-The `source sdk` is in fact where one loads the sdk:
-the running shell *will become the interactive sdk console* providing
+The running shell *will become the interactive sdk console* providing
 command completion and online help. To exit the SDK one has to close
-the running shell, or the terminal.
+the running shell, or the terminal.  So you are inside the SDK
+environment. We recommend using shells that are initialized this way
+to be used exclusively for the Devuan SDK purposes: after `source sdk`
+they are not anymore normal shells. To go back to normal just `exit`
+the terminal or open a new one besides, as the SDK is only active in
+the shell where it is launched.
 
-The `init` command needs to be executed only on the first run: it will
-take a while to clone all Devuan repositories and download Debian's
-keyring.
+If this is the first SDK run, or if one needs to update the staged
+sources downloading new commits from our server, then run the `init`
+command.
 
-Once done, import the nethack-console package:
 
-```
-package nethack-console
-package-import
-```
+## Import a package from Debian
 
-The SDK output (excluding curl progress bars) will be then:
 
-```
-Devuan (*) Importing package: nethack
-Devuan  .  Downloading sources from: http://ftp.debian.org/debian//pool/main/n/nethack
-Devuan (*) Source version:  3.4.3-15
-Devuan  .  Source destination: nethack-3.4.3
-Devuan  .  Package description: nethack_3.4.3-15.dsc
-Devuan  .  Package orig source: nethack_3.4.3.orig.tar.gz
-Devuan  .  Package deb  source: nethack_3.4.3-15.debian.tar.xz
-```
+Now let's imagine we need to import a new package from Debian,
+something that has not yet being staged in Devuan. Let's pick
+`hasciicam` and give the following commands to download it, verify its
+signature, unpack it and make it into a git repository.
 
-Then let's verify signatures with
 
 ```
-package-verify
+package hasciicam
+version latest
+import
+verify
+stage
 ```
 
-And check the output carefully for the hashes to match:
+Then the hasciicam sourcecode will be in stage/ and checked in git. If
+the package `hasciicam` is already staged in Devuan, then an error
+would be given while importing the same version, but different
+versions would be checked in as branches.
 
-```
-Devuan  .  Compare SHA256 checksums
-SHA256 desc checksum: bb39c3d2a9ee2df4a0c8fdde708fbc63740853a7608d2f4c560b488124866fe4 nethack_3.4.3.orig.tar.gz
-SHA256 file checksum: bb39c3d2a9ee2df4a0c8fdde708fbc63740853a7608d2f4c560b488124866fe4 nethack_3.4.3.orig.tar.gz
-Devuan  .  Compare SHA256 checksums
-SHA256 desc checksum: 60af68a29e9c33aafd64d7f72c2cfe21536bb6bbf32c717d03112c24d048e5c0 nethack_3.4.3-15.debian.tar.xz
-SHA256 file checksum: 60af68a29e9c33aafd64d7f72c2cfe21536bb6bbf32c717d03112c24d048e5c0 nethack_3.4.3-15.debian.tar.xz
-gpg: Signature made Mon 12 May 2014 08:31:47 AM CEST using RSA key ID AA1F32FF
-gpg: Good signature from "Vincent Cheng <vcheng@debian.org>"
-Primary key fingerprint: D53A 815A 3CB7 659A F882  E395 8EED CC1B AA1F 32FF
-```
+Ok now if we have a package correctly staged then its name and version
+are shown at right of prompt, as well the architecture we are
+targeting the build. Then launch the build with:
 
-Here they match and the signature is good: the package is authentic!
-From here we can then decide to unpack it and to stage it into our git
-repository:
 
-```
-package-unpack
-```
-
-Will print
-
-```
-Devuan (*) Importing package: nethack-console
-Devuan  .  Decompressing orig source file
-Devuan  .  Decompressing debian source file
-```
-
-And then staging it will copy the unpacked sources into the `stage/`
-subdir and version them with git, also stamping them with a little
-`.devuan` file to remember the package and version they came from in
-Debian:
-
-```
-package-stage
-```
-
-Will output a list of files from the git import, but also SDK
-messages:
-
-```
-Initialized empty Git repository in /home/jrml/devel/devuan-sdk/stage/nethack-console/.git/
-[master (root-commit) 9e7a5b4] Import from Debian jessie/main package nethack-console-3.4.3
- 749 files changed, 412550 insertions(+)
-[...]
-Devuan (*) Stage successfull: stage/nethack-console
-Devuan  .  Remote: https://git.devuan.org/packages-base/nethack-console
-Devuan (*) Importing package: nethack-console
-```
-
-As all goes well you will see that the name and version of the package
-is shown on the right prompt, as a reminder of the interactive shell
-about which package we are working on.
+As all goes well you will see that the name and version of the
+`hasciicam` package (or any other you have choosen) is shown on the
+right prompt, as a reminder of the interactive shell about which
+package we are working on.
 
 You are done importing! one last thing: if a new version of the staged
-package `nethack-console` would came out in Debian, `package-import`
-will realize it. One can then run all the procedure again until
-`package-stage` which will then create a git branch with the new
+package `hasciicam` would came out in Debian, the `import` will
+realize it. One can then run all the procedure again until
+the `stage` command which will then create a git branch with the new
 version inside the existing imported repository. This way maintainers
 can use git to analyse differences and merge them manually into the
 current Devuan package.
 
-All `package-` steps can be listed by interactive completion, just
-type `package-[tab]` for a reminder. They are also aliased to shorter
-commands: simply omitt the `package-` prefix.
+All the commands used here can be prefixed with `package-` and listed
+by interactive completion: just type `package-[tab]` for a
+reminder of the commands available.
 
 ## Prepare to build in chroots
 
@@ -309,18 +242,12 @@ cp` files from the host to chroot.
 Just type:
 
 ```
-auto-build
+build
 ```
 
 If all goes well, results will be in the SDK subdir `builds/`.
 
-To sign the package use:
-
-```
-build-sign
-```
-
-The `auto-build` command is really a wrapper among various steps, to
+The `build` command is really a wrapper among various steps, to
 list them one can use again `build-[tab]`. All steps can be launched
 standalone:
 
@@ -334,20 +261,35 @@ build-start
 build-finish
 ```
 
+If the build fails in the middle, one can comfortably modify the
+staged source, including the `debian/*` files, and then retry from
+where it failed using:
+
+```
+build-retry
+```
+
 # Toast the iso
 
 The installer ISO can be toasted into a ready to burn image with a
-simple `auto-iso` command, here the breakdown of its various steps:
+simple `auto-iso` command (as shown in the quick start guide
+above). Here the breakdown of various steps performed by `auto-iso`:
 
 ```
+iso xfce
 iso-import
 iso-replace-packages
+iso-add-package loginkit
+iso-add-preseed preseeds/xfce
 iso-prepare
 iso-make
 ```
 
-We just use to dowload Debian's netinst and change its contents for
-now, but things may change rapidly in some future.
+We select the xfce iso format, dowload the Debian image for it,
+replace its contents with our packages in builds/, make sure loginkit
+is present, add our preseed and toast it. The resulting iso will be
+found in the sdk subdirectory `iso/`.
+
 
 # Caveat
 
