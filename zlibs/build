@@ -35,6 +35,7 @@ build auto-build build-auto build-force() {
         notice "Building all staged repositories"
         stages=`find stage -maxdepth 1 -type d`
         for s in ${(f)stages}; do
+            # skip first directory hit by gnu find
             [[ "$s" = "stage" ]] && continue
             target+=(${s[(ws:/:)2]})
         done
@@ -54,11 +55,6 @@ build auto-build build-auto build-force() {
 
     fi
 
-    # check if the package is staged
-    [[ -r $sdk_path/stage/$src_name/debian/changelog ]] || {
-        error "$src_name package not yet staged"
-        return 1
-    }
 
     
     # key/value record of built heads
@@ -71,6 +67,12 @@ build auto-build build-auto build-force() {
 
         notice "Building repository: $t"
         package $t
+        # check if the package is staged
+        [[ -r $sdk_path/stage/$src_name/debian/changelog ]] || {
+            error "$src_name package not yet staged"
+            return 1
+        }
+
         orig_ver=${src_ver%-*}
         act "upstream version: $orig_ver"
         act "package version: $src_ver"
@@ -143,42 +145,23 @@ build-deps() {
         return 1
     }
 
-#     return 0
-
-#     # first parse
-#     repo_deps=(`awk '
-# func strip_deps(i) {
-#   out=gensub(/Build-Depends:|,|\|/,"","g")
-#   print out
-# }
-# BEGIN { found=0 }
-# /^Build-Depends:/ { found=1; strip_deps($0); next }
-# /^ / { if(found==1) strip_deps($0); next }
-# /^#/ { next }
-# /^$/ { found=0 }
-# { found=0 }
-# ' $sdk_path/stage/$src_name/debian/control | \
-#  sed -e 's/([^()]*)//g' -e 's/\[[^()]*\]//g'`)
-
     act "${#repo_deps} dependencies found"
     act "$repo_deps"
 
-    # gather array of installed packages
-#     installed=(`chdo dpkg -l  | awk '
-# /ii/ { print $2 }
-# /rc/ { print $2 }
-# '`)
-
-
     for d in $repo_deps; do
-        # act "Checking dep: $d"
-        # # check if dep is in installed array
-        # [[ "${installed[(r)$d]}" == "$d" ]] || {
-            act "Installing dep: $d"
-            schroot -c devuan-$chroot_arch -u root \
-                -d /usr/src \
-                -- apt-get --force-yes -y install $d
-#        }
+
+        # small test to avoid systemd deps (TODO test)
+        # [[ "$d" =~ "systemd" ]] && {
+        #     warn "${src_name}-${src_ver} is trying to install systemd dependency: $d"
+        #     warn "blocking the build for now, please disinfect the package"
+        #     return 1
+        # }
+
+        act "Installing dep: $d"
+        schroot -c devuan-$chroot_arch -u root \
+            -d /usr/src \
+            -- apt-get --force-yes -y install $d
+
     done
 
 }

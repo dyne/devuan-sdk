@@ -74,6 +74,7 @@ sdk_path=`pwd`
 # load all zlibs
 source zlibs/init
 source zlibs/helpers
+source zlibs/zkv
 source zlibs/package
 source zlibs/chroot
 source zlibs/stage

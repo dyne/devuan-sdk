@@ -50,11 +50,13 @@ init-repos() {
         if [[ -d $base ]]; then
 
             pushd $base
+            act "Pull updates for $base"
             git pull
             popd
 
         else
 
+            act "Cloning new repo for $base"
             git clone ${git}/${base}.git
 
         fi
