@@ -212,7 +212,7 @@ build-pack-orig() {
 
     act "Pack orig tarball in chroot"
     schroot -c devuan-$chroot_arch -u root \
-         /usr/src/ -- \
+        -d /usr/src/ -- \
         tar cfJ ${src_name}_${orig_ver}.orig.tar.xz \
         ${src_name}-${orig_ver}
 
