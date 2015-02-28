@@ -212,7 +212,7 @@ build-pack-orig() {
 
     act "Pack orig tarball in chroot"
     schroot -c devuan-$chroot_arch -u root \
-        -d $sdk_path/chroot/$chroot_arch/usr/src/ -- \
+         /usr/src/ -- \
         tar cfJ ${src_name}_${orig_ver}.orig.tar.xz \
         ${src_name}-${orig_ver}
 
@@ -228,10 +228,10 @@ build-pack-debian() {
 
     act "Pack debian tarball in chroot"
     schroot -c devuan-$chroot_arch -u root \
-        -d $sdk_path/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver} \
+        -d /usr/src/${src_name}-${orig_ver} \
         -- tar cfJ ${src_name}_${src_ver}.debian.tar.xz debian
    schroot -c devuan-$chroot_arch -u root \
-       -d $sdk_path/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver} \
+       -d /usr/src/${src_name}-${orig_ver} \
        mv ${src_name}_${src_ver}.debian.tar.xz ..
 
 }
