@@ -8,7 +8,6 @@ libsystemd0
 sysvinit-core
 devuan-baseconf
 devuan-keyring
-loginkit
 
 #+ package del
 # systemd
@@ -17,7 +16,6 @@ loginkit
 devuan-keyring
 devuan-baseconf
 sysvinit
-loginkit
 slim
 
 #+ debian preseed
@@ -41,7 +39,7 @@ popularity-contest popularity-contest/participate boolean false
 
 tasksel tasksel/first multiselect standard, desktop
 tasksel tasksel/desktop multiselect xfce4
-d-i pkgsel/include string xfce4-places-plugin openssh-server loginkit
+d-i pkgsel/include string xfce4-places-plugin openssh-server
 d-i pkgsel/exclude string systemd
 
 d-i passwd/root-password password devuan
