@@ -89,7 +89,7 @@ iso-add-package() {
             act "add $pb"
         }
     done
-    
+
 }
 
 # add a preseed.cfg file
@@ -97,7 +97,7 @@ iso-add-preseed() {
     fn iso-add-preseed
     req=(chroot_arch)
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
-    freq=(chroot/$chroot_arch/$iso/README.html)    
+    freq=(chroot/$chroot_arch/$iso/README.html)
     reqck || return $?
 
 
@@ -143,13 +143,13 @@ EOF
 
     notice "Done adding preseed $q_name"
 }
-    
+
 # add a preseed.cfg file
 iso-rm-preseed() {
     fn iso-rm-preseed
     req=(chroot_arch)
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
-    freq=(chroot/$chroot_arch/$iso/README.html)    
+    freq=(chroot/$chroot_arch/$iso/README.html)
     reqck || return $?
 
 
@@ -222,7 +222,7 @@ iso-import() {
     else
         notice "Downloading Debian $iso_type iso"
         act "from: $installer"
-        
+
         sudo \
             curl $debian_iso_url \
             -o $src/debian-iso/$iso_img
@@ -258,7 +258,7 @@ iso-replace-packages() {
 
     notice "Replacing iso packages with those found in $sdir"
     act "release $release arch $chroot_arch"
-    
+
     typeset -A dvn_builds
     # gather a map of builds we have locally
     sdir_f=`find $sdir -type f -name "*deb"`
@@ -482,6 +482,28 @@ iso-seed() {
     for p in ${(f)padd}; do
         iso-add-package $p
     done
+
+    # inject own debian-installer if in builds
+    [[ -r $sdk_path/builds/debian-installer/dest-$chroot_arch ]] && {
+        act "adding own build of debian-installer for $chroot_arch"
+        case $chroot_arch in
+            i386)
+                sudo cp -vf \
+                    $sdk_path/builds/debian-installer/dest-$chroot_arch/cdrom/vmlinuz \
+                    $root/$iso/install.386/vmlinuz
+                sudo cp -vf \
+                    $sdk_path/builds/debian-installer/dest-$chroot_arch/cdrom/initrd.gz \
+                    $root/$iso/install.386/initrd.gz
+                sudo cp -vf \
+                    $sdk_path/builds/debian-installer/dest-$chroot_arch/cdrom/gtk/vmlinuz \
+                    $root/$iso/install.386/gtk/vmlinuz
+                sudo cp -vf \
+                    $sdk_path/builds/debian-installer/dest-$chroot_arch/cdrom/gtk/initrd.gz \
+                    $root/$iso/install.386/gtk/initrd.gz
+                ;;
+            *) ;;
+        esac
+    }
 
     # inject preseed from selected seed (iso_type)
     tmpreseed=`mktemp`

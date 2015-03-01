@@ -56,7 +56,7 @@ build auto-build build-auto build-force() {
     fi
 
 
-    
+
     # key/value record of built heads
     typeset -A heads
     heads=()
@@ -99,7 +99,7 @@ build auto-build build-auto build-force() {
             act "to force build delete skip file or use: build-force $src_name"
             continue
         }
-            
+
         build-clean
 
         build-sync
@@ -244,11 +244,25 @@ build-start() {
     reqck || return $?
 
     notice "Starting build of ${src_name}-${src_ver} for $chroot_arch"
-    # launch dpkg-buildpackage in chroot
-    schroot -c devuan-$chroot_arch -u root \
-        -d /usr/src/${src_name}-${orig_ver} \
-        -- dpkg-buildpackage -uc -us
 
+    # check if its debian-installer
+    if [[ "$src_name" = "debian-installer" ]]; then
+
+        schroot -c devuan-$chroot_arch -u root \
+            -d /usr/src/${src_name}-${orig_ver}/build \
+            -- make reallyclean
+
+        schroot -c devuan-$chroot_arch -u root \
+            -d /usr/src/${src_name}-${orig_ver}/build \
+            -- fakeroot make build_cdrom_isolinux
+
+
+    else
+        # launch dpkg-buildpackage in chroot
+        schroot -c devuan-$chroot_arch -u root \
+            -d /usr/src/${src_name}-${orig_ver} \
+            -- dpkg-buildpackage -uc -us
+    fi
 }
 
 build-retry() {
@@ -262,6 +276,12 @@ build-retry() {
 
     build-sync
 
+    # check if its debian-installer
+    [[ "$src_name" = "debian-installer" ]] && {
+        error "Cannot run build-retry on debian-installer, use build"
+        return 1
+    }
+
     # -nc is no clean
     schroot -c devuan-$chroot_arch -u root \
         -d /usr/src/${src_name}-${orig_ver} \
@@ -274,13 +294,23 @@ build-finish() {
     fn build-finish
     src=chroot/$chroot_arch/usr/src
     req=(src_name chroot_arch orig_ver)
-    freq=(chroot/$chroot_arch/etc/passwd
-        $src/${src_name}_${src_ver}_${chroot_arch}.changes)
+    freq=(chroot/$chroot_arch/etc/passwd)
+    [[ "$src_name" = "debian-installer" ]] || {
+        freq+=($src/${src_name}_${src_ver}_${chroot_arch}.changes) }
     reqck || return $?
 
     notice "Finishing build $src_name versioned $src_ver"
 
     mkdir -p $sdk_path/builds/$src_name
+
+    # different if building debian-installer
+    [[ "$src_name" = "debian-installer" ]] && {
+        mkdir -p $sdk_path/builds/debian-installer/dest-$chroot_arch
+        rsync --delete -rX \
+            $sdk_path/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver}/build/dest/* \
+            $sdk_path/builds/debian-installer/dest-$chroot_arch
+        return 0
+    }
 
     # all built packages
     typeset -A bld
@@ -338,26 +368,4 @@ build-sign() {
 
     debsign $sdk_path/builds/$src_name/${src_name}_${src_ver}_${chroot_arch}.changes
 
-}
-
-
-
-# obsolete snippets
-
-
-    #  ${caz#*\(}  ${caz%\)*}
-
-
-_build() {
-
-    repo_dsc_file=`find $sdk_path/sources -maxdepth 1 \
-         -name "*$repo_name*" \
-        | grep "$repo_ver.*dsc"`
-    [[ "$repo_dsc_file" = "" ]] && {
-        print "Desc file not found for $repo_name $repo_ver"
-        return 1
-    }
-    print "Desc file: ${repo_dsc_file:t}"
-
-    repo_dsc=`cat $repo_dsc_file`
 }
