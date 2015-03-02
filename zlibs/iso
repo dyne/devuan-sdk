@@ -448,6 +448,8 @@ iso-seed() {
     #+ package add
     #+ package remove
 
+    mkdir -p $root/$iso/.disk
+
     tmpexclude=`mktemp`
     _seed-section "base exclude" >> $tmpexclude
     [[ $debug = 1 ]] && {
