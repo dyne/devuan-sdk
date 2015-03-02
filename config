@@ -16,7 +16,7 @@ installer=http://mirror.debianfork.org
 # amd64/iso-cd/debian-jessie-DI-rc1-amd64-netinst.iso
 
 # deboostrap settings for chroots
-chroot_include=bzip2,zsh,vim-nox,less,dialog,sysvinit,debian-keyring,apt-utils,genisoimage,cpio
+chroot_include=bzip2,zsh,vim-nox,less,dialog,sysvinit,debian-keyring,apt-utils,xorriso,cpio
 chroot_exclude=systemd,systemd-sysv,libsystemd0
 chroot_variant=buildd
 chroot_comp=main # components
