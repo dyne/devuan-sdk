@@ -412,6 +412,11 @@ EOF
         >> $tmp
 
     sudo mv $tmp $root/$iso/dists/$release/Release
+
+    # taken from https://wiki.debian.org/DebianInstaller/Modify/CD#Fix_md5sum.27s
+    pushd $root/usr/src/devuan-iso/$release-$chroot_arch-$iso_type
+    md5sum `find ! -name "md5sum.txt" ! -path "./isolinux/*" -follow -type f` > md5sum.txt
+    popd
 }
 
 # auxiliary function used internally
@@ -517,6 +522,10 @@ iso-seed() {
     iso-add-preseed $tmpreseed
     rm -f $tmpreseed
 
+    # write the distro name, release, architecture, image type and date
+    cat << EOF > $root/$iso/.disk/info
+Devuan GNU/Linux "$release" - $chroot_arch $iso_type `date +%Y%m%d-%H:%M`
+EOF
 }
 
 iso-make() {
