@@ -1,4 +1,22 @@
+#+ base exclude
+systemd
+systemd-sysv
+libsystemd0
 
+#+ base include
+sysvinit-core
+devuan-baseconf
+devuan-keyring
+
+#+ package del
+# systemd
+
+#+ package add
+devuan-keyring
+devuan-baseconf
+sysvinit
+
+#+ debian preseed
 d-i pkgsel/include string xfce4-places-plugin openssh-server
 d-i pkgsel/exclude string systemd
 
