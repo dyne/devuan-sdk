@@ -544,14 +544,15 @@ iso-make() {
 
     schroot -c devuan-$chroot_arch \
         -u root -d $root/usr/src/devuan-iso -- \
-        xorriso -as mkisofs -output devuan-$release-$chroot_arch-$so_type.iso \
+        xorriso -as mkisofs -output devuan-$release-$chroot_arch-$iso_type.iso \
         -iso-level 3 -full-iso9660-filenames -r -J -no-emul-boot -boot-load-size 4 \
         -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -partition_offset 16 \
         -boot-info-table -b isolinux/isolinux.bin -c isolinux/boot.cat \
         ./$release-$chroot_arch-$iso_type
 
     mkdir -p $sdk_path/iso
-    cp $root/usr/src/devuan-iso/devuan-$release-$chroot_arch-$iso_type.iso \
+    sudo \
+        mv $root/usr/src/devuan-iso/devuan-$release-$chroot_arch-$iso_type.iso \
         $sdk_path/iso/
 
     pushd $sdk_path
