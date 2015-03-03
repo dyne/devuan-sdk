@@ -112,7 +112,7 @@ iso-add-preseed() {
     }
 
 
-    notice "Adding preseed to $release $chroot_arch iso: $q_name"
+    notice "Adding preseed to $release $chroot_arch iso: $iso_type"
 
     # saves it in the root of the iso for consultation
     sudo cp $q_name $root/$iso/preseed.cfg
@@ -141,7 +141,7 @@ EOF
     sudo mv $tmp $root/usr/src/devuan-iso/$release-$chroot_arch-preseed-script
     chdo /usr/src/devuan-iso/$release-$chroot_arch-preseed-script
 
-    notice "Done adding preseed $q_name"
+    notice "Done adding preseed $iso_type"
 }
 
 # add a preseed.cfg file
@@ -415,7 +415,9 @@ EOF
 
     # taken from https://wiki.debian.org/DebianInstaller/Modify/CD#Fix_md5sum.27s
     pushd $root/usr/src/devuan-iso/$release-$chroot_arch-$iso_type
-    md5sum `find ! -name "md5sum.txt" ! -path "./isolinux/*" -follow -type f` > md5sum.txt
+    tmpmd5=`mktemp`
+    sudo md5sum `find ! -name "md5sum.txt" ! -path "./isolinux/*" -follow -type f` >> $tmpmd5
+    sudo mv $tmpmd5 md5sum.txt
     popd
 }
 
@@ -523,9 +525,11 @@ iso-seed() {
     rm -f $tmpreseed
 
     # write the distro name, release, architecture, image type and date
-    cat << EOF > $root/$iso/.disk/info
+    tmpinfo=`mktemp`
+    cat << EOF >> $tmpinfo
 Devuan GNU/Linux "$release" - $chroot_arch $iso_type `date +%Y%m%d-%H:%M`
 EOF
+    sudo mv $tmpinfo $root/$iso/.disk/info
 }
 
 iso-make() {
@@ -542,6 +546,7 @@ iso-make() {
         -u root -d $root/usr/src/devuan-iso -- \
         xorriso -as mkisofs -output devuan-$release-$chroot_arch-$so_type.iso \
         -iso-level 3 -full-iso9660-filenames -r -J -no-emul-boot -boot-load-size 4 \
+        -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -partition_offset 16 \
         -boot-info-table -b isolinux/isolinux.bin -c isolinux/boot.cat \
         ./$release-$chroot_arch-$iso_type
 
