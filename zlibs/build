@@ -230,9 +230,9 @@ build-pack-debian() {
     schroot -c devuan-$chroot_arch -u root \
         -d /usr/src/${src_name}-${orig_ver} \
         -- tar cfJ ${src_name}_${src_ver}.debian.tar.xz debian
-   schroot -c devuan-$chroot_arch -u root \
-       -d /usr/src/${src_name}-${orig_ver} \
-       mv ${src_name}_${src_ver}.debian.tar.xz ..
+    schroot -c devuan-$chroot_arch -u root \
+        -d /usr/src/${src_name}-${orig_ver} \
+        mv ${src_name}_${src_ver}.debian.tar.xz ..
 
 }
 
@@ -263,6 +263,35 @@ build-start() {
             -d /usr/src/${src_name}-${orig_ver} \
             -- dpkg-buildpackage -uc -us
     fi
+}
+
+# this is used internally to build first packages on host
+.build-bootstrap() {
+    fn build-bootstrap
+    req=(chroot_arch)
+    freq=(stage/debootstrap/debian stage/devuan-baseconf/debian)
+    ckreq || return $?
+
+    mkdir -p $sdk_path/bootstrap
+
+    package $1
+    mkdir -p $sdk_path/bootstrap/$src_name-${orig_ver}
+    rsync -a --exclude='.git/' \
+        $sdk_path/stage/$src_name/* \
+        $sdk_path/bootstrap/${src_name}-${orig_ver}
+    pushd $sdk_path/bootstrap
+    tar cfJ ${src_name}_${orig_ver}.orig.tar.xz \
+        ${src_name}-${orig_ver}
+    popd
+    pushd $sdk_path/bootstrap/${src_name}-${orig_ver}
+    tar cfJ ${src_name}_${src_ver}.debian.tar.xz debian
+    mv ${src_name}_${src_ver}.debian.tar.xz ..
+    popd
+    pushd $sdk_path/bootstrap/$src_name-${orig_ver}
+    dpkg-buildpackage -uc -us
+    popd
+
+
 }
 
 build-retry() {

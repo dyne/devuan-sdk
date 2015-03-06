@@ -101,6 +101,10 @@ chroot-create() {
         return 0
     }
 
+    notice "Build and install Devuan debootstrap on host"
+    .build-bootstrap debootstrap
+    sudo dpkg -i $sdk_path/bootstrap/${src_name}_${src_ver}_all.deb
+
     notice "First stage debootstrap"
 
     sudo \
@@ -118,14 +122,33 @@ chroot-create() {
     schroot -c devuan-$chroot_arch -u root \
         -d /debootstrap -- ./debootstrap --second-stage
 
-    # act "Adding apt sources"
-    # sudo \
-    #     rsync -a $sdk_path/config.d/* \
-    #     $sdk_path/chroot/$chroot_arch/
+    notice "Build and install Devuan baseconf in chroot"
+    .build-bootstrap devuan-baseconf
+    sudo \
+        cp $sdk_path/bootstrap/${src_name}_${src_ver}_all.deb \
+        $sdk_path/chroot/$chroot_arch/root
+    chdo \
+        dpkg -i /root/${src_name}_${src_ver}_all.deb
 
-    act "Updating package lists"
-    schroot -c devuan-$chroot_arch -u root \
+    notice "Build and install Devuan keyring in chroot"
+    .build-bootstrap devuan-keyring
+    sudo \
+        cp $sdk_path/bootstrap/${src_name}_${src_ver}_all.deb \
+        $sdk_path/chroot/$chroot_arch/root
+    chdo \
+        dpkg -i /root/${src_name}_${src_ver}_all.deb
+
+    notice "Updating package lists in chroot"
+    chdo \
         apt-get update
+
+    notice "Installing build tools in chroot"
+    chdo \
+        apt-get install zsh vim-nox \
+        xorriso cpio xz-utils \
+        dpkg-dev gcc g++ autoconf automake libtool
+
+    notice "Chroot succesfully created: $chroot_arch"
 }
 
 chdo() {
@@ -137,11 +160,11 @@ chdo() {
     schroot -c devuan-$chroot_arch -s $chroot_shell \
         -u root -d /root -- $@
 }
-    
+
 chroot-enter() {
     fn chroot-enter
     req=(chroot_arch)
-    freq=(chroot/$chroot_arch/etc/passwd)
+    freq=(chroot/$chroot_arch/etc)
     reqck || return $?
 
     schroot -c devuan-$chroot_arch -u root -d /root -s /bin/bash
@@ -201,7 +224,7 @@ EOF
 
             ;;
         refresh|reset|reload)
-            
+
             # update local repository
             pushd $sdk_path/builds
             rm -f Packages.xz
@@ -220,5 +243,3 @@ EOF
 
 
 }
-
-
