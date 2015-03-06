@@ -72,14 +72,14 @@ iso-add-package() {
     req=(release chroot_arch iso_type)
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
     pname=$1
-    freq=(builds/$pname chroot/$chroot_arch/$iso/README.html)
+    freq=(builds/${chroot_arch}/$pname chroot/$chroot_arch/$iso/README.html)
     reqck || return $?
 
     notice "Adding package to $release $chroot_arch $iso_type: $pname"
 
     # add all packages compiled from this source
-    debs=(`find $sdk_path/builds/$pname/ -name "*${chroot_arch}*deb"`)
-    debs+=(`find $sdk_path/builds/$pname/ -name "*all*deb"`)
+    debs=(`find $sdk_path/builds/${chroot_arch}/$pname/ -name "*${chroot_arch}*deb"`)
+    debs+=(`find $sdk_path/builds/${chroot_arch}/$pname/ -name "*all*deb"`)
     for p in $debs
     do
         pb=`basename $p`
@@ -254,7 +254,7 @@ iso-replace-packages() {
     freq=(chroot/$chroot_arch/$iso/README.html)
     reqck || return $?
 
-    sdir=${1:-$sdk_path/builds}
+    sdir=${1:-$sdk_path/builds/$chroot_arch}
 
     notice "Replacing iso packages with those found in $sdir"
     act "release $release arch $chroot_arch"
@@ -493,21 +493,21 @@ iso-seed() {
     done
 
     # inject own debian-installer if in builds
-    [[ -r $sdk_path/builds/debian-installer/dest-$chroot_arch ]] && {
+    [[ -r $sdk_path/builds/${chroot_arch}/debian-installer/dest-$chroot_arch ]] && {
         act "adding own build of debian-installer for $chroot_arch"
         case $chroot_arch in
             i386)
                 sudo cp -vf \
-                    $sdk_path/builds/debian-installer/dest-$chroot_arch/cdrom/vmlinuz \
+                    $sdk_path/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom/vmlinuz \
                     $root/$iso/install.386/vmlinuz
                 sudo cp -vf \
-                    $sdk_path/builds/debian-installer/dest-$chroot_arch/cdrom/initrd.gz \
+                    $sdk_path/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom/initrd.gz \
                     $root/$iso/install.386/initrd.gz
                 sudo cp -vf \
-                    $sdk_path/builds/debian-installer/dest-$chroot_arch/cdrom/gtk/vmlinuz \
+                    $sdk_path/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom/gtk/vmlinuz \
                     $root/$iso/install.386/gtk/vmlinuz
                 sudo cp -vf \
-                    $sdk_path/builds/debian-installer/dest-$chroot_arch/cdrom/gtk/initrd.gz \
+                    $sdk_path/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom/gtk/initrd.gz \
                     $root/$iso/install.386/gtk/initrd.gz
                 ;;
             *) ;;

@@ -60,8 +60,8 @@ build auto-build build-auto build-force() {
     # key/value record of built heads
     typeset -A heads
     heads=()
-    [[ -r $sdk_path/builds/heads-${chroot_arch}.zkv ]] && \
-        zkv-load $sdk_path/builds/heads-${chroot_arch}.zkv
+    [[ -r $sdk_path/builds/${chroot_arch}/heads.zkv ]] && \
+        zkv-load $sdk_path/builds/${chroot_arch}/heads.zkv
 
     for t in $target; do
 
@@ -117,7 +117,7 @@ build auto-build build-auto build-force() {
         notice "$t done building"
         act "saving built git head: $staged_githead"
         heads+=(${src_name}-${src_ver} $staged_githead)
-        zkv-save heads $sdk_path/builds/heads-${chroot_arch}.zkv
+        zkv-save heads $sdk_path/builds/${chroot_arch}/heads.zkv
     done
 
     popd
@@ -330,16 +330,19 @@ build-finish() {
 
     notice "Finishing build $src_name versioned $src_ver"
 
-    mkdir -p $sdk_path/builds/$src_name
+    mkdir -p $sdk_path/builds/${chroot_arch}/$src_name
 
     # different if building debian-installer
     [[ "$src_name" = "debian-installer" ]] && {
-        mkdir -p $sdk_path/builds/debian-installer/dest-$chroot_arch
+        mkdir -p $sdk_path/builds/${chroot_arch}/debian-installer/dest-$chroot_arch
         rsync --delete -rX \
             $sdk_path/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver}/build/dest/* \
-            $sdk_path/builds/debian-installer/dest-$chroot_arch
+            $sdk_path/builds/${chroot_arch}/debian-installer/dest-$chroot_arch
         return 0
     }
+
+    act "trashing old packages in builds/${chroot_arch}/$src_name"
+    rm -rf $sdk_path/builds/${chroot_arch}/$src_name/*
 
     # all built packages
     typeset -A bld
@@ -364,13 +367,13 @@ build-finish() {
         [[ -r $sdk_path/$src/${b}_${src_ver}_${arch}.udeb ]] && {
             sudo \
                 cp $sdk_path/$src/${b}_${src_ver}_${arch}.udeb \
-                $sdk_path/builds/$src_name
+                $sdk_path/builds/${chroot_arch}/$src_name
         }
 
         [[ -r $sdk_path/$src/${b}_${src_ver}_${arch}.deb ]] && {
             sudo \
                 cp $sdk_path/$src/${b}_${src_ver}_${arch}.deb \
-                $sdk_path/builds/$src_name
+                $sdk_path/builds/${chroot_arch}/$src_name
         }
 
     done
@@ -382,7 +385,7 @@ build-finish() {
         $sdk_path/$src/${src_name}_${src_ver}.dsc \
         $sdk_path/$src/${src_name}_${src_ver}_${chroot_arch}.changes \
         $sdk_path/$src/${src_name}_${orig_ver}.orig.tar.xz \
-        $sdk_path/builds/$src_name
+        $sdk_path/builds/${chroot_arch}/$src_name
 
 }
 
@@ -390,11 +393,11 @@ build-finish() {
 build-sign() {
     fn build-sign
     req=(src_name src_ver chroot_arch)
-    freq=(builds/$src_name/${src_name}_${src_ver}_${chroot_arch}.changes)
+    freq=(builds/${chroot_arch}/$src_name/${src_name}_${src_ver}_${chroot_arch}.changes)
     reqck || return $?
 
     notice "Signing: $src_name $src_ver $chroot_arch"
 
-    debsign $sdk_path/builds/$src_name/${src_name}_${src_ver}_${chroot_arch}.changes
+    debsign $sdk_path/builds/${chroot_arch}/$src_name/${src_name}_${src_ver}_${chroot_arch}.changes
 
 }
