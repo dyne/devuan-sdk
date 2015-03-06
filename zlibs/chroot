@@ -27,7 +27,7 @@ auto-chroot chroot-auto() {
     arch $1
     chroot-config
     chroot-create
-    serve-local-repo
+    serve-local-repo on
 }
 
 chroot arch() {
@@ -144,7 +144,7 @@ chroot-create() {
 
     notice "Installing build tools in chroot"
     chdo \
-        apt-get install zsh vim-nox \
+        apt-get install -y zsh vim-nox \
         xorriso cpio xz-utils \
         dpkg-dev gcc g++ autoconf automake libtool
 
@@ -180,6 +180,9 @@ serve-local-repo() {
 
     tmp=`mktemp`
     root=$sdk_path/chroot/$chroot_arch
+
+    sudo apt-get install -y mini-httpd
+
     case "$1" in
         on|yes)
 
@@ -236,7 +239,7 @@ EOF
             chdo apt-get update
             ;;
         *)
-            warn "usage: server-local-repo [ on | off ]"
+            warn "usage: serve-local-repo [ on | off | reload ]"
             ;;
     esac
     rm -f $tmp
