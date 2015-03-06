@@ -145,7 +145,7 @@ chroot-create() {
     notice "Installing build tools in chroot"
     chdo \
         apt-get install -y zsh vim-nox \
-        xorriso cpio xz-utils \
+        xorriso cpio xz-utils isolinux \
         dpkg-dev gcc g++ autoconf automake libtool
 
     notice "Chroot succesfully created: $chroot_arch"
