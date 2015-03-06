@@ -60,8 +60,8 @@ build auto-build build-auto build-force() {
     # key/value record of built heads
     typeset -A heads
     heads=()
-    [[ -r $sdk_path/builds/heads.zkv ]] && \
-        zkv-load $sdk_path/builds/heads.zkv
+    [[ -r $sdk_path/builds/heads-${chroot_arch}.zkv ]] && \
+        zkv-load $sdk_path/builds/heads-${chroot_arch}.zkv
 
     for t in $target; do
 
@@ -117,7 +117,7 @@ build auto-build build-auto build-force() {
         notice "$t done building"
         act "saving built git head: $staged_githead"
         heads+=(${src_name}-${src_ver} $staged_githead)
-        zkv-save heads $sdk_path/builds/heads.zkv
+        zkv-save heads $sdk_path/builds/heads-${chroot_arch}.zkv
     done
 
     popd
