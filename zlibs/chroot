@@ -23,6 +23,13 @@
 # default shell for the chroot
 chroot_shell=/bin/dash
 
+auto-chroot chroot-auto() {
+    arch $1
+    chroot-config
+    chroot-create
+    serve-local-repo
+}
+
 chroot arch() {
     fn arch
 
@@ -88,8 +95,6 @@ chroot-create() {
     fn chroot-create
     req=(chroot_arch)
     reqck || return $?
-
-    chroot-config
 
     [[ -r $sdk_path/chroot/$chroot_arch/etc/passwd ]] && {
         warn "Chroot already existing: $sdk_path/chroot/$chroot_arch"
