@@ -22,13 +22,12 @@
 
 # reqs: curl, gnupg2, sudo, schroot, debootstrap
 
+# adopts Zsh extension "Zuper"
+
 zmodload zsh/system
 zmodload zsh/regex
 
-typeset -aU vars
-typeset -aU arrs
-vars=()
-arrs=()
+source zlibs/zuper
 
 # config variables
 vars+=(mirror release section)
@@ -74,7 +73,6 @@ sdk_path=`pwd`
 # load all zlibs
 source zlibs/init
 source zlibs/helpers
-source zlibs/zkv
 source zlibs/package
 source zlibs/chroot
 source zlibs/stage
@@ -83,6 +81,8 @@ source zlibs/build
 source zlibs/iso
 source zlibs/messaging
 
+# complete zuper initialization
+source zlibs/zuper.init
 
 dump status() {
     act "Devuan SDK status dump:"
@@ -98,13 +98,8 @@ dump status() {
 TRAPDEBUG() {
     RPROMPT="${repo_name:-$src_name} ${repo_ver:-$src_ver} ${chroot_arch} ${iso_type}"
 }
-zerr() { 
-    error "error in: ${cur_fun}"
-    warn "$last_notice"
-    warn "$last_act"
-    error "Error reported, operation aborted."
-    return 1
-}
+
+# exit on error of any function
 TRAPZERR() { zerr; return $? }
 
 if [[ $sdk_loaded = 1 ]]; then

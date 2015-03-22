@@ -1,34 +1,5 @@
 #!/usr/bin/env zsh
 
-# debugging and require control
-fn() {
-    cur_fun=$1
-    func "${cur_fun}()"
-    req=()
-    freq=()
-}
-
-ckreq reqck() {
-    err=0
-    for v in $req; do
-        [[ "${(P)v}" = "" ]] && {
-            warn "$cur_fun() required setting is blank: $v"
-            err=1
-        }
-    done
-
-    [[ $err = 1 ]] && return $err
-
-    for f in $freq; do
-        # exists and has size greater than zero
-        [[ -s $sdk_path/$f ]] || {
-            warn "$cur_fun() required file empty: $f"
-            err=1
-        }
-    done
-    return $err
-}
-        
 html_strip() { sed 's/<[^>]\+>//g' }
 
 # get the name of the package from a filename
