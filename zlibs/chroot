@@ -50,7 +50,7 @@ chroot arch() {
     esac
 
     notice "Chroot selected: $chroot_arch"
-    if [[ -r $sdk_path/chroot/$chroot_arch/etc/passwd ]]; then
+    if [[ -r $R/chroot/$chroot_arch/etc/passwd ]]; then
         act "ready for use (build or run chroot-enter)"
     else
         act "not existing yet (run chroot-create)"
@@ -68,14 +68,14 @@ chroot-config() {
         return 1
     }
 
-    sudo mkdir -p $sdk_path/chroot/$chroot_arch
+    sudo mkdir -p $R/chroot/$chroot_arch
 
     tmp=`mktemp`
     chmod a+r $tmp
     cat <<EOF >> $tmp
 [devuan-$chroot_arch]
 type=directory
-directory=$sdk_path/chroot/$chroot_arch
+directory=$R/chroot/$chroot_arch
 description=Devuan SDK $chroot_arch
 users=$USER
 root-users=$USER
@@ -96,14 +96,14 @@ chroot-create() {
     req=(chroot_arch)
     reqck || return $?
 
-    [[ -r $sdk_path/chroot/$chroot_arch/etc/passwd ]] && {
-        warn "Chroot already existing: $sdk_path/chroot/$chroot_arch"
+    [[ -r $R/chroot/$chroot_arch/etc/passwd ]] && {
+        warn "Chroot already existing: $R/chroot/$chroot_arch"
         return 0
     }
 
     notice "Build and install Devuan debootstrap on host"
     .build-bootstrap debootstrap
-    sudo dpkg -i $sdk_path/bootstrap/${src_name}_${src_ver}_all.deb
+    sudo dpkg -i $R/bootstrap/${src_name}_${src_ver}_all.deb
 
     notice "First stage debootstrap"
 
@@ -115,7 +115,7 @@ chroot-create() {
         --include=$chroot_include \
         --exclude=$chroot_exclude \
         --no-check-gpg \
-        $release $sdk_path/chroot/$chroot_arch $mirror
+        $release $R/chroot/$chroot_arch $mirror
 
     notice "Second stage debootstrap"
 
@@ -125,16 +125,16 @@ chroot-create() {
     notice "Build and install Devuan baseconf in chroot"
     .build-bootstrap devuan-baseconf
     sudo \
-        cp $sdk_path/bootstrap/${src_name}_${src_ver}_all.deb \
-        $sdk_path/chroot/$chroot_arch/root
+        cp $R/bootstrap/${src_name}_${src_ver}_all.deb \
+        $R/chroot/$chroot_arch/root
     chdo \
         dpkg -i /root/${src_name}_${src_ver}_all.deb
 
     notice "Build and install Devuan keyring in chroot"
     .build-bootstrap devuan-keyring
     sudo \
-        cp $sdk_path/bootstrap/${src_name}_${src_ver}_all.deb \
-        $sdk_path/chroot/$chroot_arch/root
+        cp $R/bootstrap/${src_name}_${src_ver}_all.deb \
+        $R/chroot/$chroot_arch/root
     chdo \
         dpkg -i /root/${src_name}_${src_ver}_all.deb
 
@@ -154,7 +154,7 @@ chroot-create() {
 chdo() {
     fn chdo
     req=(chroot_arch)
-    freq=(chroot/$chroot_arch/etc/passwd)
+    freq=($R/chroot/$chroot_arch/etc/passwd)
     reqck || return $?
 
     schroot -c devuan-$chroot_arch -s $chroot_shell \
@@ -164,7 +164,7 @@ chdo() {
 chroot-enter() {
     fn chroot-enter
     req=(chroot_arch)
-    freq=(chroot/$chroot_arch/etc)
+    freq=($R/chroot/$chroot_arch/etc)
     reqck || return $?
 
     schroot -c devuan-$chroot_arch -u root -d /root -s /bin/bash
@@ -175,11 +175,11 @@ chroot-enter() {
 serve-local-repo() {
     fn serve-local-repo
     req=(chroot_arch)
-    freq=(chroot/$chroot_arch/etc/apt/sources.list)
+    freq=($R/chroot/$chroot_arch/etc/apt/sources.list)
     reqck || return $?
 
     tmp=`mktemp`
-    root=$sdk_path/chroot/$chroot_arch
+    root=$R/chroot/$chroot_arch
 
     sudo apt-get install -y mini-httpd
 
@@ -187,7 +187,7 @@ serve-local-repo() {
         on|yes)
 
             # update local repository
-            pushd $sdk_path/builds
+            pushd $R/builds
             rm -f Packages.xz
             dpkg-scanpackages . | awk '
 /Filename:/ { gsub(/\.\//, "", $2); print $0; next }
@@ -209,7 +209,7 @@ EOF
             }
             TRAPZERR() { zerr }
 
-            mini-httpd -u $USER -p 12345 -d $sdk_path/builds
+            mini-httpd -u $USER -p 12345 -d $R/builds
 
             notice "Local builds available in chroot/$chroot_arch"
 
@@ -229,7 +229,7 @@ EOF
         refresh|reset|reload)
 
             # update local repository
-            pushd $sdk_path/builds
+            pushd $R/builds
             rm -f Packages.xz
             dpkg-scanpackages . | awk '
 /Filename:/ { gsub(/\.\//, "", $2); print $0; next }

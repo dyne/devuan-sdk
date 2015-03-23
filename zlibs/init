@@ -26,10 +26,10 @@ init() {
     # initialization
     init-repos && init-keyring
 
-    mkdir -p $sdk_path/sources
-    mkdir -p $sdk_path/stage
-    mkdir -p $sdk_path/chroot
-    mkdir -p $sdk_path/builds
+    mkdir -p $R/sources
+    mkdir -p $R/stage
+    mkdir -p $R/chroot
+    mkdir -p $R/builds
 
     notice "Devuan SDK succesfully initialized"
     act "For usage information refer to the README."
@@ -43,8 +43,8 @@ init-repos() {
     git="https://git.devuan.org/packages-base"
     print "Updating list of Devuan packages"
     repos=`curl -s https://git.devuan.org/groups/packages-base | awk '/a class=.*project/ { print $3}' | cut -d'"' -f2`
-    mkdir -p $sdk_path/stage
-    pushd $sdk_path/stage
+    mkdir -p $R/stage
+    pushd $R/stage
     for i in ${(f)repos}; do
         base=`basename $i`
         if [[ -d $base ]]; then
@@ -67,14 +67,14 @@ init-repos() {
 init-keyring() {
     fn init-keyring
 
-    [[ -s $sdk_path/.gnupg/debian-keyring.gpg ]] && {
+    [[ -s $R/.gnupg/debian-keyring.gpg ]] && {
         print "Public keyring found."
         return 0
     }
 
-    mkdir -p $sdk_path/.gnupg
+    mkdir -p $R/.gnupg
 
-    pushd $sdk_path/.gnupg/
+    pushd $R/.gnupg/
     rsync -az --progress keyring.debian.org::keyrings/keyrings/debian-keyring.gpg .
 
     print "GnuPG debian maintainers keyring succesfully imported"

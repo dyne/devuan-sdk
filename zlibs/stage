@@ -24,10 +24,10 @@
 get_staged_name() {
     fn get_staged_name
     req=(q_name)
-    freq=(stage/$src_name/debian/control)
+    freq=($R/stage/$src_name/debian/control)
     reqck || return $?
 
-    staged_name=`cat $sdk_path/stage/$repo_name/debian/control | awk '
+    staged_name=`cat $R/stage/$repo_name/debian/control | awk '
 /^Source: / { print $2; exit }'`
 
 }
@@ -35,7 +35,7 @@ get_staged_name() {
 get_staged_version() {
     fn get_staged_version
     req=(src_name)
-    freq=(stage/$src_name/debian/changelog)
+    freq=($R/stage/$src_name/debian/changelog)
     reqck || return $?
 
         staged_ver=`awk '
@@ -44,17 +44,17 @@ get_staged_version() {
   print $2
   exit
 }
-' $sdk_path/stage/$src_name/debian/changelog`
+' $R/stage/$src_name/debian/changelog`
 
 }
    
 get_staged_githead() {
     fn get_staged_githead
     req=(src_name)
-    freq=(stage/$src_name/debian/changelog)
+    freq=($R/stage/$src_name/debian/changelog)
     reqck || return $?
 
-    pushd $sdk_path/stage/$src_name
+    pushd $R/stage/$src_name
     staged_githead=`git log | awk '{ print $2; exit 0 }'`
     popd
 }
@@ -63,7 +63,7 @@ get_staged_githead() {
 stage package-stage() {
     fn package-stage
     req=(src_name src_dest)
-    freq=(sources/$src_dsc)
+    freq=($R/sources/$src_dsc)
     reqck || return $?
 
     package-unpack
@@ -71,7 +71,7 @@ stage package-stage() {
     orig_ver=${src_ver%-*}
 
     # already staged check if versions differ
-    [[ -r $sdk_path/stage/$src_name/debian/changelog ]] && {
+    [[ -r $R/stage/$src_name/debian/changelog ]] && {
 
         get_staged_version
 
@@ -80,20 +80,20 @@ stage package-stage() {
 
         [[ "$staged_ver" = "$src_ver" ]] || {
             notice "Creating branch for version: $src_ver"
-            pushd $sdk_path/stage/$src_name
+            pushd $R/stage/$src_name
             git checkout -b v${src_ver}
-            rsync -raX $sdk_path/sources/${src_name}-${orig_ver}/* \
-                $sdk_path/stage/$src_name/
+            rsync -raX $R/sources/${src_name}-${orig_ver}/* \
+                $R/stage/$src_name/
             git add .
             git commit -m "branched new version $src_ver"
             popd
         }
         return 0
     }
-    mkdir -p $sdk_path/stage/$src_name
-    rsync -raX $sdk_path/sources/${src_name}-${orig_ver}/* \
-        $sdk_path/stage/$src_name/
-    pushd $sdk_path/stage/$src_name
+    mkdir -p $R/stage/$src_name
+    rsync -raX $R/sources/${src_name}-${orig_ver}/* \
+        $R/stage/$src_name/
+    pushd $R/stage/$src_name
     git init
     git add .
     git commit -m "Import from Debian $release/$section package $src_name-$src_ver"

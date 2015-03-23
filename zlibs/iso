@@ -22,14 +22,14 @@
 
 seed iso() {
     fn iso
-    freq=(seeds)
+    freq=($R/seeds)
     ckreq
 
-    seeds=`ls $sdk_path/seeds`
+    seeds=`ls $R/seeds`
     sel=$1
 
     # check if selected iso is in preseeds
-    [[ -r $sdk_path/seeds/${sel} ]] || {
+    [[ -r $R/seeds/${sel} ]] || {
         error "iso type not supported: $1"
         return 1
     }
@@ -59,7 +59,7 @@ iso-del-package() {
     req=(release chroot_arch iso_type)
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
     pname=$1
-    freq=(chroot/$chroot_arch/$iso/README.html)
+    freq=($R/chroot/$chroot_arch/$iso/README.html)
     reqck || return $?
 
     notice "Deleting package from $release $chroot_arch $iso_type: $pname"
@@ -72,20 +72,20 @@ iso-add-package() {
     req=(release chroot_arch iso_type)
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
     pname=$1
-    freq=(builds/${chroot_arch}/$pname chroot/$chroot_arch/$iso/README.html)
+    freq=($R/builds/${chroot_arch}/$pname chroot/$chroot_arch/$iso/README.html)
     reqck || return $?
 
     notice "Adding package to $release $chroot_arch $iso_type: $pname"
 
     # add all packages compiled from this source
-    debs=(`find $sdk_path/builds/${chroot_arch}/$pname/ -name "*${chroot_arch}*deb"`)
-    debs+=(`find $sdk_path/builds/${chroot_arch}/$pname/ -name "*all*deb"`)
+    debs=(`find $R/builds/${chroot_arch}/$pname/ -name "*${chroot_arch}*deb"`)
+    debs+=(`find $R/builds/${chroot_arch}/$pname/ -name "*all*deb"`)
     for p in $debs
     do
         pb=`basename $p`
         [[ -r $p ]] && {
-            sudo mkdir -p $sdk_path/chroot/$chroot_arch/$iso/pool/main/${pname[1]}/$pname/
-            sudo cp $p $sdk_path/chroot/$chroot_arch/$iso/pool/main/${pname[1]}/$pname/
+            sudo mkdir -p $R/chroot/$chroot_arch/$iso/pool/main/${pname[1]}/$pname/
+            sudo cp $p $R/chroot/$chroot_arch/$iso/pool/main/${pname[1]}/$pname/
             act "add $pb"
         }
     done
@@ -97,11 +97,11 @@ iso-add-preseed() {
     fn iso-add-preseed
     req=(chroot_arch)
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
-    freq=(chroot/$chroot_arch/$iso/README.html)
+    freq=($R/chroot/$chroot_arch/$iso/README.html)
     reqck || return $?
 
 
-    root=$sdk_path/chroot/$chroot_arch
+    root=$R/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
 
     q_name=$1
@@ -149,11 +149,11 @@ iso-rm-preseed() {
     fn iso-rm-preseed
     req=(chroot_arch)
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
-    freq=(chroot/$chroot_arch/$iso/README.html)
+    freq=($R/chroot/$chroot_arch/$iso/README.html)
     reqck || return $?
 
 
-    root=$sdk_path/chroot/$chroot_arch
+    root=$R/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
 
     notice "Removing preseed from $release $chroot_arch iso"
@@ -209,7 +209,7 @@ iso-import() {
     # TODO change with final release of Debian when ready
     debian_iso_url=$installer/$iso_img
 
-    root=$sdk_path/chroot/$chroot_arch
+    root=$R/chroot/$chroot_arch
 
     src=$root/usr/src
 
@@ -245,16 +245,16 @@ iso-import() {
 }
 
 # takes an argument: directory storing packages to inject
-# default to $sdk_path/builds
+# default to $R/builds
 iso-replace-packages() {
     fn iso-replace-packages
     req=(release chroot_arch)
-    root=$sdk_path/chroot/$chroot_arch
+    root=$R/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
-    freq=(chroot/$chroot_arch/$iso/README.html)
+    freq=($R/chroot/$chroot_arch/$iso/README.html)
     reqck || return $?
 
-    sdir=${1:-$sdk_path/builds/$chroot_arch}
+    sdir=${1:-$R/builds/$chroot_arch}
 
     notice "Replacing iso packages with those found in $sdir"
     act "release $release arch $chroot_arch"
@@ -312,9 +312,9 @@ iso-replace-packages() {
 iso-index iso-prepare() {
     fn iso-index
     req=(release chroot_arch)
-    root=$sdk_path/chroot/$chroot_arch
+    root=$R/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
-    freq=(chroot/$chroot_arch/$iso/README.html)
+    freq=($R/chroot/$chroot_arch/$iso/README.html)
     reqck || return $?
 
     notice "Indexing all packages inside the iso"
@@ -381,7 +381,7 @@ EOF
     chdo \
         rm -f /usr/src/devuan-iso/indices/override
     tmpoverride=`mktemp`
-    gunzip $sdk_path/seeds/override.$release.main.gz -c >> $tmpoverride
+    gunzip $R/seeds/override.$release.main.gz -c >> $tmpoverride
     sudo \
         mv $tmpoverride $root/usr/src/devuan-iso/indices/override
 
@@ -432,14 +432,14 @@ _seed-section() {
 /^#\+/ { if(found==1) exit 0 }
 /^$/ { next }
 { if(found==1) print $0 }
-' $sdk_path/seeds/$iso_type
+' $R/seeds/$iso_type
 }
 iso-seed() {
     fn iso-seed
     req=(release chroot_arch)
-    root=$sdk_path/chroot/$chroot_arch
+    root=$R/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
-    freq=(chroot/$chroot_arch/$iso/README.html)
+    freq=($R/chroot/$chroot_arch/$iso/README.html)
     reqck || return $?
 
     sudo chmod u+w $root/$iso
@@ -493,21 +493,21 @@ iso-seed() {
     done
 
     # inject own debian-installer if in builds
-    [[ -r $sdk_path/builds/${chroot_arch}/debian-installer/dest-$chroot_arch ]] && {
+    [[ -r $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch ]] && {
         act "adding own build of debian-installer for $chroot_arch"
         case $chroot_arch in
             i386)
                 sudo cp -vf \
-                    $sdk_path/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom/vmlinuz \
+                    $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom/vmlinuz \
                     $root/$iso/install.386/vmlinuz
                 sudo cp -vf \
-                    $sdk_path/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom/initrd.gz \
+                    $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom/initrd.gz \
                     $root/$iso/install.386/initrd.gz
                 sudo cp -vf \
-                    $sdk_path/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom/gtk/vmlinuz \
+                    $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom/gtk/vmlinuz \
                     $root/$iso/install.386/gtk/vmlinuz
                 sudo cp -vf \
-                    $sdk_path/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom/gtk/initrd.gz \
+                    $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom/gtk/initrd.gz \
                     $root/$iso/install.386/gtk/initrd.gz
                 ;;
             *) ;;
@@ -535,9 +535,9 @@ EOF
 iso-make() {
     fn iso-make
     req=(chroot_arch release)
-    root=$sdk_path/chroot/$chroot_arch
+    root=$R/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
-    freq=(chroot/$chroot_arch/$iso/README.html)
+    freq=($R/chroot/$chroot_arch/$iso/README.html)
     reqck || return $?
 
     notice "Toasting $iso_type for $release $chroot_arch"
@@ -550,12 +550,12 @@ iso-make() {
         -boot-info-table -b isolinux/isolinux.bin -c isolinux/boot.cat \
         ./$release-$chroot_arch-$iso_type
 
-    mkdir -p $sdk_path/iso
+    mkdir -p $R/iso
     sudo \
         mv $root/usr/src/devuan-iso/devuan-$release-$chroot_arch-$iso_type.iso \
-        $sdk_path/iso/
+        $R/iso/
 
-    pushd $sdk_path
+    pushd $R
     notice "$iso_type ISO ready for $release $chroot_arch"
     act " `ls -lh iso/devuan-$release-$chroot_arch-$iso_type.iso`"
     popd

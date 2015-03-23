@@ -24,12 +24,12 @@
 release-config() {
     fn release-config
     req=(chroot_arch)
-    freq=(chroot/$chroot_arch)
+    freq=($R/chroot/$chroot_arch)
     reqck || return $?
 
     release $@
 
-    root=$sdk_path/chroot/$chroot_arch
+    root=$R/chroot/$chroot_arch
 
     sudo mkdir -p $root/mirrors/devuan
 
@@ -253,7 +253,7 @@ EOF
 release-mirror() {
     fn release-config
     req=(chroot_arch)
-    freq=(chroot/$chroot_arch/mirrors/devuan/.exclude)
+    freq=($R/chroot/$chroot_arch/mirrors/devuan/.exclude)
     reqck || return $?
 
     notice "Starting to mirror release $iso_arch"

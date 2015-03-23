@@ -35,9 +35,10 @@ vars+=(chroot_include chroot_exclude chroot_variant chroot_comp)
 vars+=(debug cur_fun)
 
 # global variables
-vars+=(sdk_path)
-vars+=(last_notice last_act last_func)
-typeset -h sdk_loaded
+vars+=(R sdk_loaded)
+# we assume source sdk is always run from the source dir
+# which is the "root" of the program, $R
+R=`pwd`
 
 # package import variables
 vars+=(source_url)
@@ -57,18 +58,8 @@ vars+=(repo_name repo_ver repo_deps build_ver orig_name)
 # iso variables
 vars+=(iso_arch iso_type)
 
-# function requirement checks
-arrs+=(req freq)
-
-# initialize globals
-for v in $vars; do
-    typeset -h $v
-done
 
 source config
-
-# we assume source sdk is always run from the source dir
-sdk_path=`pwd`
 
 # load all zlibs
 source zlibs/init
@@ -83,16 +74,6 @@ source zlibs/messaging
 
 # complete zuper initialization
 source zlibs/zuper.init
-
-dump status() {
-    act "Devuan SDK status dump:"
-    for v in $vars; do
-        print "$v \t ${(P)v}"
-    done
-    for a in $arrs; do
-        print "$a \t ${(P)a}"
-    done
-}
 
 # unset DEBUG_BEFORE_CMD
 TRAPDEBUG() {

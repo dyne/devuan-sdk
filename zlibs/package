@@ -21,8 +21,8 @@
 # 675 Mass Ave, Cambridge, MA 02139, USA.
 
 # gnupg commands
-gpg_fast="gpg2 --no-default-keyring --no-auto-check-trustdb --keyring $sdk_path/.gnupg/debian-keyring.gpg"
-gpg="gpg2 --no-default-keyring --keyring $sdk_path/.gnupg/debian-keyring.gpg --batch"
+gpg_fast="gpg2 --no-default-keyring --no-auto-check-trustdb --keyring $R/.gnupg/debian-keyring.gpg"
+gpg="gpg2 --no-default-keyring --keyring $R/.gnupg/debian-keyring.gpg --batch"
 
 
 # provisional implementation
@@ -145,7 +145,7 @@ BEGIN { found=0 }
 get_src_dest() {
     orig_ver=${src_ver%-*}
     # calculate destination directory from tar contents
-    src_dest=`tar tvf $sdk_path/sources/$src_orig | awk '
+    src_dest=`tar tvf $R/sources/$src_orig | awk '
 { print $6; exit }
 '`
     src_dest=${src_dest%*/}
@@ -169,7 +169,7 @@ package() {
 
     q_name=$1
 
-    [[ -r $sdk_path/stage/$q_name/debian/changelog ]] && {
+    [[ -r $R/stage/$q_name/debian/changelog ]] && {
         src_name=$q_name
         get_staged_version
         act "source already staged at version $staged_ver"
@@ -184,14 +184,14 @@ package() {
     src_name=${src_name:-$q_name}
     notice "Source selected: $src_name"
 
-    if [[ -r $sdk_path/sources/$src_dsc ]]; then
+    if [[ -r $R/sources/$src_dsc ]]; then
         act "source package already downloaded"
         get_src_dest
     else
         warn "source package not found, run import to download"
     fi
 
-    [[ -r $sdk_path/stage/$src_name/debian/changelog ]] && {
+    [[ -r $R/stage/$src_name/debian/changelog ]] && {
         get_staged_version
         act "source already staged at version $staged_ver"
         src_ver=$staged_ver
@@ -222,11 +222,11 @@ import package-import() {
     for s in $src_files; do
 
         func "Source file: $s"
-        if [[ -r $sdk_path/sources/${s} ]]; then
+        if [[ -r $R/sources/${s} ]]; then
             func "file found already downloaded: sources/$s"
             func "`file sources/$s`"
         else
-            curl ${source_url}/$s -o $sdk_path/sources/$s
+            curl ${source_url}/$s -o $R/sources/$s
             [[ $? = 0 ]] || {
                 warn "Error downloading: $s"
                 warn "Url: ${source_url}/$s"
@@ -236,15 +236,15 @@ import package-import() {
 
         if [[ "$s" -regex-match ".*\.dsc$" ]]; then
             func "detected package dsc"
-            file $sdk_path/sources/$s | grep -i 'text' > /dev/null
+            file $R/sources/$s | grep -i 'text' > /dev/null
             src_dsc=$s 
         elif [[ "$s" -regex-match ".*\.debian\..*" ]]; then
             func "detected package debian"
-            file $sdk_path/sources/$s | grep -i 'compressed data' > /dev/null
+            file $R/sources/$s | grep -i 'compressed data' > /dev/null
             src_debian=$s
         else
             func "detected package orig"
-            file $sdk_path/sources/$s | grep -i 'compressed data' > /dev/null
+            file $R/sources/$s | grep -i 'compressed data' > /dev/null
             src_orig=$s
         fi
     done    
@@ -264,12 +264,12 @@ import package-import() {
 verify package-verify() {
     fn package-verify
     req=(src_dsc)
-    freq=(sources/$src_dsc)
+    freq=($R/sources/$src_dsc)
     reqck || return $?
 
     notice "Verifying signatures for $src_name $src_ver"
     local _dsc
-    _dsc=`cat $sdk_path/sources/${src_dsc}`
+    _dsc=`cat $R/sources/${src_dsc}`
 
     hash_map=()
     hash_dsc_256=`print - $_dsc | awk '
@@ -283,7 +283,7 @@ BEGIN { found=0 }
     for f in ${(k)hash_map}; do
         act "Compare SHA256 checksums"
         print "SHA256 desc checksum: ${hash_map[$f]} ${f}"
-        hash_tar_256=`sha256sum $sdk_path/sources/$f | awk '{print $1}'`
+        hash_tar_256=`sha256sum $R/sources/$f | awk '{print $1}'`
         print "SHA256 file checksum: $hash_tar_256 ${f}"
         print
     done
@@ -294,11 +294,11 @@ BEGIN { found=0 }
 package-unpack() {
     fn package-unpack
     req=(src_orig src_dsc src_files)
-    freq=(sources/$src_orig)
+    freq=($R/sources/$src_orig)
     reqck || return $?
 
     act "Decompressing source $src_name $src_ver"
-    pushd $sdk_path/sources
+    pushd $R/sources
     dpkg-source --no-check --skip-patches -x $src_dsc
     popd
     return 0
@@ -370,12 +370,12 @@ _pkg_obsolete-stamp() {
 
     package $@
 
-    [[ -d $sdk_path/stage/$pkg_name ]] || {
+    [[ -d $R/stage/$pkg_name ]] || {
         warn "Cannot stamp project, not staged yet"
         return 1
     }
 
-    dst=$sdk_path/stage/$pkg_name/.devuan
+    dst=$R/stage/$pkg_name/.devuan
 
     cat <<EOF > $dst
 source_name: $pkg_name
@@ -393,7 +393,7 @@ EOF
     cat <<EOF >> $dst
 end: hash sha256
 EOF
-    pushd $sdk_path/stage/$pkg_name
+    pushd $R/stage/$pkg_name
     git add .devuan
     git commit -m "import stamp version $pkg_ver"    
     popd

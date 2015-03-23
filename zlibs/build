@@ -23,10 +23,10 @@
 build auto-build build-auto build-force() {
     fn build
     req=(chroot_arch)
-    freq=(chroot/$chroot_arch/etc/passwd)
+    freq=($R/chroot/$chroot_arch/etc/passwd)
     reqck || return $?
 
-    pushd $sdk_path
+    pushd $R
 
     # realize what we want to build
     target=()
@@ -60,15 +60,15 @@ build auto-build build-auto build-force() {
     # key/value record of built heads
     typeset -A heads
     heads=()
-    [[ -r $sdk_path/builds/${chroot_arch}/heads.zkv ]] && \
-        zkv.load $sdk_path/builds/${chroot_arch}/heads.zkv
+    [[ -r $R/builds/${chroot_arch}/heads.zkv ]] && \
+        zkv.load $R/builds/${chroot_arch}/heads.zkv
 
     for t in $target; do
 
         notice "Building repository: $t"
         package $t
         # check if the package is staged
-        [[ -r $sdk_path/stage/$src_name/debian/changelog ]] || {
+        [[ -r $R/stage/$src_name/debian/changelog ]] || {
             error "$src_name package not yet staged"
             return 1
         }
@@ -94,7 +94,7 @@ build auto-build build-auto build-force() {
         }
 
         # check if the build should be skipped
-        [[ -r $sdk_path/stage/skip-$src_name ]] && [[ "$0" != "build-force" ]] && {
+        [[ -r $R/stage/skip-$src_name ]] && [[ "$0" != "build-force" ]] && {
             act "staged source tagged to be skip: stage/skip-$src_name"
             act "to force build delete skip file or use: build-force $src_name"
             continue
@@ -117,7 +117,7 @@ build auto-build build-auto build-force() {
         notice "$t done building"
         act "saving built git head: $staged_githead"
         heads+=(${src_name}-${src_ver} $staged_githead)
-        zkv.save heads $sdk_path/builds/${chroot_arch}/heads.zkv
+        zkv.save heads $R/builds/${chroot_arch}/heads.zkv
     done
 
     popd
@@ -126,7 +126,7 @@ build auto-build build-auto build-force() {
 build-deps() {
     fn build-deps
     req=(src_name chroot_arch)
-    freq=(stage/$src_name/debian/control
+    freq=($R/stage/$src_name/debian/control
         chroot/$chroot_arch/usr/src/${src_name}-${orig_ver})
     reqck || return $?
 
@@ -169,23 +169,23 @@ build-deps() {
 build-clean() {
     fn build-clean
     req=(chroot_arch src_name src_ver orig_ver)
-    freq=(stage/$src_name/debian/control
-        chroot/$chroot_arch/etc/passwd)
+    freq=($R/stage/$src_name/debian/control
+        $R/chroot/$chroot_arch/etc/passwd)
     reqck || return $?
 
     orig_ver=${src_ver%-*}
 
     notice "Clean source in chroot /usr/src/$src_name-${orig_ver}"
     sudo \
-        rm -rf $sdk_path/chroot/$chroot_arch/usr/src/$src_name-${orig_ver}
+        rm -rf $R/chroot/$chroot_arch/usr/src/$src_name-${orig_ver}
 
 }
 
 build-sync() {
     fn build-sync
     req=(chroot_arch src_name src_ver orig_ver)
-    freq=(stage/$src_name/debian/control
-        chroot/$chroot_arch/etc/passwd)
+    freq=($R/stage/$src_name/debian/control
+        $R/chroot/$chroot_arch/etc/passwd)
     reqck || return $?
 
     orig_ver=${src_ver%-*}
@@ -193,12 +193,12 @@ build-sync() {
     act "Sync repo into chroot"
 
     sudo \
-        mkdir -p $sdk_path/chroot/$chroot_arch/usr/src/$src_name-${orig_ver}
+        mkdir -p $R/chroot/$chroot_arch/usr/src/$src_name-${orig_ver}
 
     sudo \
         rsync -a --exclude='.git/' \
-        $sdk_path/stage/$src_name/* \
-        $sdk_path/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver}
+        $R/stage/$src_name/* \
+        $R/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver}
 
 }
 
@@ -206,8 +206,8 @@ build-pack-orig() {
     fn build-pack-orig
     req=(chroot_arch src_name src_ver)
     orig_ver=${src_ver%-*}
-    freq=(stage/$src_name/debian/control
-        chroot/$chroot_arch/usr/src/${src_name}-${orig_ver})
+    freq=($R/stage/$src_name/debian/control
+        $R/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver})
     reqck || return $?
 
     act "Pack orig tarball in chroot"
@@ -221,8 +221,8 @@ build-pack-orig() {
 build-pack-debian() {
     fn build-pack-debian
     req=(chroot_arch src_name src_ver)
-    freq=(stage/$src_name/debian/control
-        chroot/$chroot_arch/usr/src/${src_name}-${orig_ver})
+    freq=($R/stage/$src_name/debian/control
+        $R/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver})
     reqck || return $?
     orig_ver=${src_ver%-*}
 
@@ -240,7 +240,7 @@ build-start() {
     fn build-start
     req=(src_name chroot_arch orig_ver)
     orig_ver=${src_ver%-*}
-    freq=(chroot/$chroot_arch/usr/src/$src_name-$orig_ver)
+    freq=($R/chroot/$chroot_arch/usr/src/$src_name-$orig_ver)
     reqck || return $?
 
     notice "Starting build of ${src_name}-${src_ver} for $chroot_arch"
@@ -269,25 +269,25 @@ build-start() {
 .build-bootstrap() {
     fn build-bootstrap
     req=(chroot_arch)
-    freq=(stage/debootstrap/debian stage/devuan-baseconf/debian)
+    freq=($R/stage/debootstrap/debian stage/devuan-baseconf/debian)
     ckreq || return $?
 
-    mkdir -p $sdk_path/bootstrap
+    mkdir -p $R/bootstrap
 
     package $1
-    mkdir -p $sdk_path/bootstrap/$src_name-${orig_ver}
+    mkdir -p $R/bootstrap/$src_name-${orig_ver}
     rsync -a --exclude='.git/' \
-        $sdk_path/stage/$src_name/* \
-        $sdk_path/bootstrap/${src_name}-${orig_ver}
-    pushd $sdk_path/bootstrap
+        $R/stage/$src_name/* \
+        $R/bootstrap/${src_name}-${orig_ver}
+    pushd $R/bootstrap
     tar cfJ ${src_name}_${orig_ver}.orig.tar.xz \
         ${src_name}-${orig_ver}
     popd
-    pushd $sdk_path/bootstrap/${src_name}-${orig_ver}
+    pushd $R/bootstrap/${src_name}-${orig_ver}
     tar cfJ ${src_name}_${src_ver}.debian.tar.xz debian
     mv ${src_name}_${src_ver}.debian.tar.xz ..
     popd
-    pushd $sdk_path/bootstrap/$src_name-${orig_ver}
+    pushd $R/bootstrap/$src_name-${orig_ver}
     dpkg-buildpackage -uc -us
     popd
 
@@ -298,7 +298,7 @@ build-retry() {
     fn build-retry
     req=(src_name chroot_arch orig_ver)
     orig_ver=${src_ver%-*}
-    freq=(chroot/$chroot_arch/usr/src/$src_name-$orig_ver)
+    freq=($R/chroot/$chroot_arch/usr/src/$src_name-$orig_ver)
     reqck || return $?
 
     notice "Retrying build of ${src_name}-${src_ver} for $chroot_arch"
@@ -323,30 +323,30 @@ build-finish() {
     fn build-finish
     src=chroot/$chroot_arch/usr/src
     req=(src_name chroot_arch orig_ver)
-    freq=(chroot/$chroot_arch/etc/passwd)
+    freq=($R/chroot/$chroot_arch/etc/passwd)
     [[ "$src_name" = "debian-installer" ]] || {
-        freq+=($src/${src_name}_${src_ver}_${chroot_arch}.changes) }
+        freq+=($R/$src/${src_name}_${src_ver}_${chroot_arch}.changes) }
     reqck || return $?
 
     notice "Finishing build $src_name versioned $src_ver"
 
-    mkdir -p $sdk_path/builds/${chroot_arch}/$src_name
+    mkdir -p $R/builds/${chroot_arch}/$src_name
 
     # different if building debian-installer
     [[ "$src_name" = "debian-installer" ]] && {
-        mkdir -p $sdk_path/builds/${chroot_arch}/debian-installer/dest-$chroot_arch
+        mkdir -p $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch
         rsync --delete -rX \
-            $sdk_path/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver}/build/dest/* \
-            $sdk_path/builds/${chroot_arch}/debian-installer/dest-$chroot_arch
+            $R/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver}/build/dest/* \
+            $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch
         return 0
     }
 
     act "trashing old packages in builds/${chroot_arch}/$src_name"
-    rm -rf $sdk_path/builds/${chroot_arch}/$src_name/*
+    rm -rf $R/builds/${chroot_arch}/$src_name/*
 
     # all built packages
     typeset -A bld
-    bld=(`cat $sdk_path/$src/$src_name-$orig_ver/debian/control | awk '
+    bld=(`cat $R/$src/$src_name-$orig_ver/debian/control | awk '
 /^Package:/ { print $2 }
 /^Architecture:/ { print $2 }
 '`)
@@ -361,19 +361,19 @@ build-finish() {
         # TODO
         # was XC-Package-Type
         # now replaced with Package-Type
-        # ptype=`cat $sdk_path/$src/$src_name-$orig_ver/debian/control | awk '
+        # ptype=`cat $R/$src/$src_name-$orig_ver/debian/control | awk '
 # /Package-Type:/ { print $2 }'`
 
-        [[ -r $sdk_path/$src/${b}_${src_ver}_${arch}.udeb ]] && {
+        [[ -r $R/$src/${b}_${src_ver}_${arch}.udeb ]] && {
             sudo \
-                cp $sdk_path/$src/${b}_${src_ver}_${arch}.udeb \
-                $sdk_path/builds/${chroot_arch}/$src_name
+                cp $R/$src/${b}_${src_ver}_${arch}.udeb \
+                $R/builds/${chroot_arch}/$src_name
         }
 
-        [[ -r $sdk_path/$src/${b}_${src_ver}_${arch}.deb ]] && {
+        [[ -r $R/$src/${b}_${src_ver}_${arch}.deb ]] && {
             sudo \
-                cp $sdk_path/$src/${b}_${src_ver}_${arch}.deb \
-                $sdk_path/builds/${chroot_arch}/$src_name
+                cp $R/$src/${b}_${src_ver}_${arch}.deb \
+                $R/builds/${chroot_arch}/$src_name
         }
 
     done
@@ -381,11 +381,11 @@ build-finish() {
     # default sources
     sudo \
         mv \
-        $sdk_path/$src/${src_name}_${src_ver}.debian.tar.xz \
-        $sdk_path/$src/${src_name}_${src_ver}.dsc \
-        $sdk_path/$src/${src_name}_${src_ver}_${chroot_arch}.changes \
-        $sdk_path/$src/${src_name}_${orig_ver}.orig.tar.xz \
-        $sdk_path/builds/${chroot_arch}/$src_name
+        $R/$src/${src_name}_${src_ver}.debian.tar.xz \
+        $R/$src/${src_name}_${src_ver}.dsc \
+        $R/$src/${src_name}_${src_ver}_${chroot_arch}.changes \
+        $R/$src/${src_name}_${orig_ver}.orig.tar.xz \
+        $R/builds/${chroot_arch}/$src_name
 
 }
 
@@ -393,11 +393,11 @@ build-finish() {
 build-sign() {
     fn build-sign
     req=(src_name src_ver chroot_arch)
-    freq=(builds/${chroot_arch}/$src_name/${src_name}_${src_ver}_${chroot_arch}.changes)
+    freq=($R/builds/${chroot_arch}/$src_name/${src_name}_${src_ver}_${chroot_arch}.changes)
     reqck || return $?
 
     notice "Signing: $src_name $src_ver $chroot_arch"
 
-    debsign $sdk_path/builds/${chroot_arch}/$src_name/${src_name}_${src_ver}_${chroot_arch}.changes
+    debsign $R/builds/${chroot_arch}/$src_name/${src_name}_${src_ver}_${chroot_arch}.changes
 
 }
