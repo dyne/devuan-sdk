@@ -27,6 +27,7 @@
 zmodload zsh/system
 zmodload zsh/regex
 
+zkv=1
 source zlibs/zuper
 
 # config variables
