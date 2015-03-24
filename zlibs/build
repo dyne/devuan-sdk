@@ -330,7 +330,6 @@ build-finish() {
 
     notice "Finishing build $src_name versioned $src_ver"
 
-    mkdir -p $R/builds/${chroot_arch}/$src_name
 
     # different if building debian-installer
     [[ "$src_name" = "debian-installer" ]] && {
@@ -342,7 +341,8 @@ build-finish() {
     }
 
     act "trashing old packages in builds/${chroot_arch}/$src_name"
-    rm -rf $R/builds/${chroot_arch}/$src_name/*
+    rm -rf   $R/builds/${chroot_arch}/$src_name
+    mkdir -p $R/builds/${chroot_arch}/$src_name
 
     # all built packages
     typeset -A bld
