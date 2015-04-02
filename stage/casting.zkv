@@ -3,7 +3,6 @@ casting+=("devuan-keyring" "packages-base")
 casting+=("devuan-baseconf" "packages-base")
 
 # base packages
-casting+=("cgmanager" "packages-base")
 casting+=("base-files" "packages-base")
 casting+=("udisks2" "packages-base")
 casting+=("policykit-1" "packages-base")
@@ -17,6 +16,7 @@ casting+=("init-system-helpers" "packages-base")
 casting+=("netcfg" "packages-base")
 casting+=("desktop-base" "packages-base")
 casting+=("tasksel" "packages-base")
+# casting+=("cgmanager" "packages-base")
 
 # desktop
 # casting+=("slim" "packages-base")

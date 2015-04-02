@@ -32,17 +32,19 @@ build auto-build build-auto build-force() {
     target=()
     if [[ "$1" = "all" ]]; then
 
-        notice "Building all staged repositories"
-        stages=`find stage -maxdepth 1 -type d`
-        for s in ${(f)stages}; do
-            # skip first directory hit by gnu find
-            [[ "$s" = "stage" ]] && continue
-            target+=(${s[(ws:/:)2]})
+        notice "Building all the cast on stage"
+        pushd $R/stage
+        typeset -A casting
+        zkv.load casting.zkv
+        for s in ${(k)casting}; do
+            [[ -d $s ]] && target+=($s)
         done
+        popd
         act "${#target} source packages found on stage"
 
     elif [[ "$1" = "" ]]; then
 
+        # we assume checks are done already when setting src_name
         [[ "$src_name" = "" ]] && {
             error "Cannot build, no package selected"
             return 1
@@ -127,7 +129,7 @@ build-deps() {
     fn build-deps
     req=(src_name chroot_arch)
     freq=($R/stage/$src_name/debian/control
-        chroot/$chroot_arch/usr/src/${src_name}-${orig_ver})
+        $R/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver})
     reqck || return $?
 
     notice "Installing dependencies for package $src_name in $chroot_arch"
