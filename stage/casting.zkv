@@ -1,3 +1,8 @@
+# devuan packages
+casting+=("devuan-keyring" "packages-base")
+casting+=("devuan-baseconf" "packages-base")
+
+# base packages
 casting+=("cgmanager" "packages-base")
 casting+=("lightdm" "packages-base")
 casting+=("base-files" "packages-base")
@@ -6,7 +11,6 @@ casting+=("policykit-1" "packages-base")
 casting+=("xfce4-session" "packages-base")
 casting+=("util-linux" "packages-base")
 casting+=("debootstrap" "packages-base")
-casting+=("devuan-keyring" "packages-base")
 casting+=("dbus" "packages-base")
 casting+=("debian-installer" "packages-base")
 casting+=("colord" "packages-base")
@@ -16,13 +20,13 @@ casting+=("network-manager" "packages-base")
 casting+=("init-system-helpers" "packages-base")
 casting+=("sane-backends" "packages-base")
 casting+=("xfce4-power-manager" "packages-base")
-casting+=("devuan-baseconf" "packages-base")
 casting+=("pulseaudio" "packages-base")
 casting+=("netcfg" "packages-base")
 casting+=("desktop-base" "packages-base")
 casting+=("tasksel" "packages-base")
-casting+=("x265" "packages-base")
 casting+=("slim" "packages-base")
 
+# multimedia
+casting+=("x265" "pkgs-multimedia")
 casting+=("jackd-defaults" "pkgs-multimedia")
 casting+=("ffmpeg" "pkgs-multimedia")
