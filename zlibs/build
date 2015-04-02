@@ -67,6 +67,9 @@ build auto-build build-auto build-force() {
 
     for t in $target; do
 
+        # skip building installed (ad-hoc in iso)
+        [[ "$t" = "debian-installer" ]] && continue
+
         notice "Building repository: $t"
         package $t
         # check if the package is staged
