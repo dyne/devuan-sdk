@@ -39,25 +39,24 @@ init() {
 init-repos() {
     fn init-repos
 
-    url="https://git.devuan.org/groups"
-    git="https://git.devuan.org/packages-base"
-    print "Updating list of Devuan packages"
-    repos=`curl -s https://git.devuan.org/groups/packages-base | awk '/a class=.*project/ { print $3}' | cut -d'"' -f2`
-    mkdir -p $R/stage
-    pushd $R/stage
-    for i in ${(f)repos}; do
-        base=`basename $i`
-        if [[ -d $base ]]; then
+    git="https://git.devuan.org/"
 
-            pushd $base
-            act "Pull updates for $base"
+    print "Updating list of Devuan packages"
+    pushd $R/stage
+    typeset -A casting
+    zkv.load casting.zkv
+
+    for s in ${(k)casting}; do
+        if [[ -d $s ]]; then
+            pushd $s
+            act "Pull updates for $s"
             git pull
             popd
 
         else
 
-            act "Cloning new repo for $base"
-            git clone ${git}/${base}.git
+            act "Cloning new repo for $s"
+            git clone ${git}/${casting[$s]}/$s.git
 
         fi
     done

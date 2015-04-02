@@ -27,7 +27,7 @@ auto-chroot chroot-auto() {
     arch $1
     chroot-config
     chroot-create
-    serve-local-repo on
+#    serve-local-repo on
 }
 
 chroot arch() {
