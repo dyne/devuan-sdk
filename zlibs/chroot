@@ -146,7 +146,8 @@ chroot-create() {
     chdo \
         apt-get install -y zsh vim-nox \
         xorriso cpio xz-utils isolinux \
-        dpkg-dev gcc g++ autoconf automake libtool
+        dpkg-dev gcc g++ autoconf automake libtool \
+        fakeroot
 
     notice "Chroot succesfully created: $chroot_arch"
 }
