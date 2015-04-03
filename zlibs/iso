@@ -193,7 +193,7 @@ EOF
 
 iso-import() {
     fn iso-import
-    req=(release installer chroot_arch iso_type)
+    req=(release iso_mirror chroot_arch iso_type)
     reqck || return $?
 
     case $iso_type in
