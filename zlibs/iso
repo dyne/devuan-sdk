@@ -511,7 +511,7 @@ iso-seed() {
     ztmp
     for i in $config_section; do
         print "$i" >> $ztmpfile
-        func "- $i"
+        func "del $i"
     done
     sudo mv $ztmpfile $root/$iso/.disk/base_exclude
 
@@ -520,7 +520,7 @@ iso-seed() {
     ztmp
     for i in $config_section; do
         print "$i" >> $ztmpfile
-        func "+ $i"
+        func "add $i"
     done
     sudo mv $ztmpfile $root/$iso/.disk/base_include
 
@@ -529,7 +529,7 @@ iso-seed() {
     config.section.read $R/seeds/$iso_type "package del"
     for i in $config_section; do
         iso-del-package $i
-        func "- $i"
+        func "del $i"
     done
 
     # delete packages
@@ -537,7 +537,7 @@ iso-seed() {
     config.section.read $R/seeds/$iso_type "package add"
     for i in $config_section; do
         iso-add-package $i
-        func "+ $i"
+        func "add $i"
     done
 
     # inject own debian-installer if in builds
