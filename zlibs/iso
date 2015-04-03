@@ -41,7 +41,7 @@ seed iso() {
 auto-iso() {
     fn iso
     req=(iso_type)
-    ckreq
+    ckreq || return $?
 
     iso-import
 
@@ -320,8 +320,8 @@ iso-index iso-prepare() {
     notice "Indexing all packages inside the iso"
 
     # ?? bzip2
-
-    tmp=`mktemp`
+    ztmp
+    tmp=$ztmpfile
     cat <<EOF >> $tmp
 Dir {
    ArchiveDir "$release-$chroot_arch-$iso_type";
@@ -347,7 +347,8 @@ Default {
 EOF
     sudo mv $tmp $root/usr/src/devuan-iso/config-udeb
 
-    tmp=`mktemp`
+    ztmp
+    tmp=$ztmpfile
     cat <<EOF >> $tmp
 Dir {
    ArchiveDir "$release-$chroot_arch-$iso_type";
@@ -373,27 +374,31 @@ EOF
     sudo mv $tmp $root/usr/src/devuan-iso/config-deb
 
     sudo mkdir -p $root/usr/src/devuan-iso/indices
-    tmp=`mktemp`
+
+    ztmp
+    tmp=$ztmpfile
 
     # TODO
     # here we grep out systemd from the indices/override this may be a
     # bit too aggressive and it might be better to do it by hand
     chdo \
         rm -f /usr/src/devuan-iso/indices/override
-    tmpoverride=`mktemp`
+    ztmp
+    tmpoverride=$ztmpfile
     gunzip $R/seeds/override.$release.main.gz -c >> $tmpoverride
     sudo \
         mv $tmpoverride $root/usr/src/devuan-iso/indices/override
 
     schroot -c devuan-$chroot_arch \
-        -u root -d $root/usr/src/devuan-iso -- \
+        -u root -d /usr/src/devuan-iso -- \
         apt-ftparchive generate config-udeb
 
     schroot -c devuan-$chroot_arch \
-        -u root -d $root/usr/src/devuan-iso -- \
+        -u root -d /usr/src/devuan-iso -- \
         apt-ftparchive generate config-deb
 
-    tmp=`mktemp`
+    ztmp
+    tmp=$ztmpfile
     cat <<EOF >> $tmp
 APT::FTPArchive::Release::Codename "$release";
 APT::FTPArchive::Release::Origin "Devuan";
@@ -404,9 +409,10 @@ APT::FTPArchive::Release::Suite "testing";
 EOF
     sudo mv $tmp $root/usr/src/devuan-iso/config-rel
 
-    tmp=`mktemp`
+    ztmp
+    tmp=$ztmpfile
     schroot -c devuan-$chroot_arch \
-        -u root -d $root/usr/src/devuan-iso -- \
+        -u root -d /usr/src/devuan-iso -- \
         apt-ftparchive -c config-rel release \
         $release-$chroot_arch-$iso_type/dists/$release \
         >> $tmp
@@ -415,7 +421,8 @@ EOF
 
     # taken from https://wiki.debian.org/DebianInstaller/Modify/CD#Fix_md5sum.27s
     pushd $root/usr/src/devuan-iso/$release-$chroot_arch-$iso_type
-    tmpmd5=`mktemp`
+    ztmp
+    tmpmd5=$ztmpfile
     sudo md5sum `find ! -name "md5sum.txt" ! -path "./isolinux/*" -follow -type f` >> $tmpmd5
     sudo mv $tmpmd5 md5sum.txt
     popd
@@ -466,7 +473,7 @@ iso-seed() {
     sudo mv $tmpexclude $root/$iso/.disk/base_exclude
 
     tmpinclude=`mktemp`
-   _seed-section "base include" >> $tmpinclude
+    _seed-section "base include" >> $tmpinclude
     [[ $debug = 1 ]] && {
         tmp=`cat $tmpinclude`
         for i in ${(f)tmp}; do func "$i"; done
