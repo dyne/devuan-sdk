@@ -198,10 +198,10 @@ iso-import() {
 
     case $iso_type in
         netinst*)
-            iso_img=debian-$release-DI-rc1-$chroot_arch-netinst.iso
+            iso_img=debian-$release-DI-rc2-$chroot_arch-netinst.iso
             ;;
         xfce*)
-            iso_img=debian-$release-DI-rc1-$chroot_arch-xfce-CD-1.iso
+            iso_img=debian-$release-DI-rc2-$chroot_arch-xfce-CD-1.iso
             ;;
         *)
             error "ISO type not supported: $iso_type"

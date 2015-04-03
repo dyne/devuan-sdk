@@ -175,8 +175,7 @@ build-deps() {
         return 1
     }
 
-    act "${#repo_deps} dependencies found"
-    act "$repo_deps"
+    act "${#repo_deps} missing dependencies found: $repo_deps"
 
     for d in $repo_deps; do
 

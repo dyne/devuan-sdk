@@ -22,13 +22,19 @@
 
 # reqs: curl, gnupg2, sudo, schroot, debootstrap
 
-# adopts Zsh extension "Zuper"
 
+# setup zsh options
+setopt pushdsilent
+
+# load zsh modules
 zmodload zsh/system
 zmodload zsh/regex
 
+# adopts Zsh extension "Zuper"
 zkv=1
 source zlibs/zuper
+
+## declare global variables
 
 # config variables
 vars+=(mirror release section)
