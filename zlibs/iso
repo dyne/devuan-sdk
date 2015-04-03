@@ -480,19 +480,6 @@ EOF
     popd
 }
 
-# auxiliary function used internally
-# prints out section contents of seed file
-_seed-section() {
-    # $1 seed file
-    # $2 section in seed
-    act "$1"
-    awk 'BEGIN { found=0 }
-/^#\+ '"$1"'/ { found=1; next }
-/^#\+/ { if(found==1) exit 0 }
-/^$/ { next }
-{ if(found==1) print $0 }
-' $R/seeds/$iso_type
-}
 iso-seed() {
     fn iso-seed
     req=(release chroot_arch)
@@ -507,66 +494,69 @@ iso-seed() {
 
     # here parsing of the selected seeds file is done
     # every section is marked with a fixed string preceeded by #+
+    # the zuper auxiliary function used internally is: config.section
+    # to print out section contents of seed file
     # sections are:
     #+ base exclude
     #+ base include
     #+ debian preseed
     #+ package add
     #+ package remove
+    # contents are found in the global array config_section
 
     mkdir -p $root/$iso/.disk
 
-    tmpexclude=`mktemp`
-    _seed-section "base exclude" >> $tmpexclude
-    [[ $debug = 1 ]] && {
-        tmp=`cat $tmpexclude`
-        for i in ${(f)tmp}; do func "$i"; done
-    }
-    sudo mv $tmpexclude $root/$iso/.disk/base_exclude
+    func "base exclude"
+    config.section.read $R/seeds/$iso_type "base exclude"
+    ztmp
+    for i in $config_section; do
+        print "$i" >> $ztmpfile
+        func "- $i"
+    done
+    sudo mv $ztmpfile $root/$iso/.disk/base_exclude
 
-    tmpinclude=`mktemp`
-    _seed-section "base include" >> $tmpinclude
-    [[ $debug = 1 ]] && {
-        tmp=`cat $tmpinclude`
-        for i in ${(f)tmp}; do func "$i"; done
-    }
-    sudo mv $tmpinclude $root/$iso/.disk/base_include
-
+    func "base include"
+    config.section.read $R/seeds/$iso_type "base include"
+    ztmp
+    for i in $config_section; do
+        print "$i" >> $ztmpfile
+        func "+ $i"
+    done
+    sudo mv $ztmpfile $root/$iso/.disk/base_include
 
     # delete packages
-    tmpdel=`mktemp`
-    _seed-section "package del" >> $tmpdel
-    pdel=`cat $tmpdel`
-    rm -f $tmpdel
-    for p in ${(f)pdel}; do
-        iso-del-package $p
+    func "package del"
+    config.section.read $R/seeds/$iso_type "package del"
+    for i in $config_section; do
+        iso-del-package $i
+        func "- $i"
     done
 
-    # add packages
-    tmppadd=`mktemp`
-    _seed-section "package add" >> $tmppadd
-    padd=`cat $tmppadd`
-    rm -f $tmppadd
-    for p in ${(f)padd}; do
-        iso-add-package $p
+    # delete packages
+    func "package add"
+    config.section.read $R/seeds/$iso_type "package add"
+    for i in $config_section; do
+        iso-add-package $i
+        func "+ $i"
     done
 
     # inject own debian-installer if in builds
     [[ -r $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch ]] && {
-        act "adding own build of debian-installer for $chroot_arch"
+        notice "adding own build of debian-installer for $chroot_arch"
+        di_path=$R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom
         case $chroot_arch in
             i386)
                 sudo cp -vf \
-                    $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom/vmlinuz \
+                    $di_path/vmlinuz \
                     $root/$iso/install.386/vmlinuz
                 sudo cp -vf \
-                    $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom/initrd.gz \
+                    $di_path/initrd.gz \
                     $root/$iso/install.386/initrd.gz
                 sudo cp -vf \
-                    $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom/gtk/vmlinuz \
+                    $di_path/gtk/vmlinuz \
                     $root/$iso/install.386/gtk/vmlinuz
                 sudo cp -vf \
-                    $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom/gtk/initrd.gz \
+                    $di_path/gtk/initrd.gz \
                     $root/$iso/install.386/gtk/initrd.gz
                 ;;
             *) ;;
@@ -574,21 +564,22 @@ iso-seed() {
     }
 
     # inject preseed from selected seed (iso_type)
-    tmpreseed=`mktemp`
-    _seed-section "debian preseed" >> $tmpreseed
-    [[ $debug = 1 ]] && {
-        tmp=`cat $tmpreseed`
-        for i in ${(f)tmp}; do func "$i"; done
-    }
-    iso-add-preseed $tmpreseed
-    rm -f $tmpreseed
+    func "debian preseed"
+    config.section.read $R/seeds/$iso_type "debian preseed"
+    ztmp
+    for i in $config_section; do
+        print "$i" >> $ztmpfile
+        func "$i"
+    done
+    iso-add-preseed $ztmpfile
 
     # write the distro name, release, architecture, image type and date
-    tmpinfo=`mktemp`
-    cat << EOF >> $tmpinfo
+    ztmp
+    cat << EOF >> $ztmpfile
 Devuan GNU/Linux "$release" - $chroot_arch $iso_type `date +%Y%m%d-%H:%M`
 EOF
-    sudo mv $tmpinfo $root/$iso/.disk/info
+    sudo mv $ztmpfile $root/$iso/.disk/info
+
 }
 
 iso-make() {
