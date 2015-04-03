@@ -12,7 +12,7 @@ section=main
 
 
 # TODO change with final release of Debian when ready
-installer=http://mirror.debianfork.org
+iso_mirror=http://mirror.debianfork.org
 # amd64/iso-cd/debian-jessie-DI-rc1-amd64-netinst.iso
 
 # deboostrap settings for chroots

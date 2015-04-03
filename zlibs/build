@@ -58,75 +58,100 @@ build auto-build build-auto build-force() {
     fi
 
 
-
-    # key/value record of built heads
-    typeset -A heads
-    heads=()
-    [[ -r $R/builds/${chroot_arch}/heads.zkv ]] && \
-        zkv.load $R/builds/${chroot_arch}/heads.zkv
-
     for t in $target; do
 
-        # skip building installed (ad-hoc in iso)
+        # skip building installer (ad-hoc in iso)
         [[ "$t" = "debian-installer" ]] && continue
 
         notice "Building repository: $t"
         package $t
-        # check if the package is staged
-        [[ -r $R/stage/$src_name/debian/changelog ]] || {
-            error "$src_name package not yet staged"
-            return 1
-        }
 
-        orig_ver=${src_ver%-*}
-        act "upstream version: $orig_ver"
-        act "package version: $src_ver"
-        get_staged_githead
-        act "staged git head: $staged_githead"
+        # check if package should be built
+        build-check || continue
 
-        # check if the current git head is already built
-        built_head=${heads[${src_name}-${src_ver}]}
-        act "builds git head: ${built_head}"
-        [[ "$staged_githead" = "${built_head}" ]] && {
-            # already build, skip
-            notice "Current staged source is already built"
-            if [[ "$0" = "build-force" ]]; then
-                act "forcing rebuild of $src_name"
-            else
-                act "skipping. to force rebuild use: build-force $src_name"
-                continue
-            fi
-        }
-
-        # check if the build should be skipped
-        [[ -r $R/stage/skip-$src_name ]] && [[ "$0" != "build-force" ]] && {
-            act "staged source tagged to be skip: stage/skip-$src_name"
-            act "to force build delete skip file or use: build-force $src_name"
-            continue
-        }
-
+        # clean up the build dir in chroot
         build-clean
 
+        # copy all sources in chroot for build
         build-sync
 
+        # install all package's build dependencies
         build-deps
 
+        # packs the orig tarball
         build-pack-orig
 
+        # packs the debian tarball
         build-pack-debian
 
+        # start the build
         build-start
 
-        build-finish
+        # finish the build
+        build-finish && {
+            # save every succesful step
+            notice "$t done building"
+            act "saving built git head: $staged_githead"
+            heads+=(${src_name}-${src_ver} $staged_githead)
+            zkv.save heads $R/builds/${chroot_arch}/heads.zkv
+        }
 
-        notice "$t done building"
-        act "saving built git head: $staged_githead"
-        heads+=(${src_name}-${src_ver} $staged_githead)
-        zkv.save heads $R/builds/${chroot_arch}/heads.zkv
     done
 
     popd
 }
+
+build-check() {
+    fn build-check
+    req=(src_name chroot_arch)
+    freq=($R/stage/$src_name/debian/control)
+    ckreq || return $?
+
+
+    # key/value record of built heads
+    # TODO maps in zuper typeset -A heads
+    heads=()
+    [[ -r $R/builds/${chroot_arch}/heads.zkv ]] && \
+        zkv.load $R/builds/${chroot_arch}/heads.zkv
+
+
+    # check if the package is staged
+    [[ -r $R/stage/$src_name/debian/changelog ]] || {
+        error "$src_name package not yet staged"
+        return 1
+    }
+
+    orig_ver=${src_ver%-*}
+    act "upstream version: $orig_ver"
+    act "package version: $src_ver"
+    get_staged_githead
+    act "staged git head: $staged_githead"
+
+    # check if the current git head is already built
+    built_head=${heads[${src_name}-${src_ver}]}
+    act "builds git head: ${built_head}"
+    [[ "$staged_githead" = "$built_head" ]] && {
+        # already build, skip
+        notice "Current staged source is already built"
+        if [[ "$0" = "build-force" ]]; then
+            act "forcing rebuild of $src_name"
+        else
+            act "skipping. to force rebuild use: build-force $src_name"
+            return 1
+        fi
+    }
+
+    # check if the build should be skipped
+    [[ -r $R/stage/skip-$src_name ]] && [[ "$0" != "build-force" ]] && {
+        act "staged source tagged to be skip: stage/skip-$src_name"
+        act "to force build delete skip file or use: build-force $src_name"
+        return 1
+    }
+
+    return 0
+
+}
+
 
 build-deps() {
     fn build-deps
@@ -250,24 +275,10 @@ build-start() {
 
     notice "Starting build of ${src_name}-${src_ver} for $chroot_arch"
 
-    # check if its debian-installer
-    if [[ "$src_name" = "debian-installer" ]]; then
-
-        schroot -c devuan-$chroot_arch -u root \
-            -d /usr/src/${src_name}-${orig_ver}/build \
-            -- make reallyclean
-
-        schroot -c devuan-$chroot_arch -u root \
-            -d /usr/src/${src_name}-${orig_ver}/build \
-            -- fakeroot make build_cdrom_isolinux
-
-
-    else
-        # launch dpkg-buildpackage in chroot
-        schroot -c devuan-$chroot_arch -u root \
-            -d /usr/src/${src_name}-${orig_ver} \
-            -- dpkg-buildpackage -uc -us
-    fi
+    # launch dpkg-buildpackage in chroot
+    schroot -c devuan-$chroot_arch -u root \
+        -d /usr/src/${src_name}-${orig_ver} \
+        -- dpkg-buildpackage -uc -us
 }
 
 # this is used internally to build first packages on host
@@ -295,7 +306,6 @@ build-start() {
     pushd $R/bootstrap/$src_name-${orig_ver}
     dpkg-buildpackage -uc -us
     popd
-
 
 }
 
@@ -334,16 +344,6 @@ build-finish() {
     reqck || return $?
 
     notice "Finishing build $src_name versioned $src_ver"
-
-
-    # different if building debian-installer
-    [[ "$src_name" = "debian-installer" ]] && {
-        mkdir -p $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch
-        rsync --delete -rX \
-            $R/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver}/build/dest/* \
-            $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch
-        return 0
-    }
 
     act "trashing old packages in builds/${chroot_arch}/$src_name"
     rm -rf   $R/builds/${chroot_arch}/$src_name

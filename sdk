@@ -48,7 +48,10 @@ vars+=(src_name src_ver src_dest orig_ver)
 vars+=(src_orig src_dsc src_debian)
 vars+=(staged_ver staged_githead)
 arrs+=(src_files)
+
+# global maps (TODO in zuper)
 typeset -A hash_map
+typeset -A heads
 
 # chroot variables
 vars+=(chroot_arch chroot_shell)
@@ -57,7 +60,7 @@ vars+=(chroot_arch chroot_shell)
 vars+=(repo_name repo_ver repo_deps build_ver orig_name)
 
 # iso variables
-vars+=(iso_arch iso_type)
+vars+=(iso_arch iso_type iso_img iso_mirror)
 
 
 source config

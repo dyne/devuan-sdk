@@ -45,6 +45,8 @@ auto-iso() {
 
     iso-import
 
+    iso-build-installer
+
     iso-replace-packages
 
     iso-seed
@@ -53,6 +55,7 @@ auto-iso() {
 
     iso-make
 }
+
 
 iso-del-package() {
     fn iso-del-package
@@ -207,7 +210,7 @@ iso-import() {
 
 
     # TODO change with final release of Debian when ready
-    debian_iso_url=$installer/$iso_img
+    debian_iso_url=$iso_mirror/$iso_img
 
     root=$R/chroot/$chroot_arch
 
@@ -221,7 +224,7 @@ iso-import() {
         ls -lh $src/debian-iso/$iso_img
     else
         notice "Downloading Debian $iso_type iso"
-        act "from: $installer"
+        act "from: $iso_mirror"
 
         sudo \
             curl $debian_iso_url \
@@ -242,6 +245,55 @@ iso-import() {
 
     sudo umount $root/usr/src/debian-iso/$release-$chroot_arch-$iso_type
 
+}
+
+iso-build-installer() {
+    fn iso-build-installer
+    req=(chroot_arch)
+    freq=()
+    ckreq || return $?
+
+    notice "Building debian-installer"
+    package debian-installer
+
+    build-check || return 0
+
+    build-clean
+
+    build-sync
+
+    build-deps
+
+    # build-start
+    schroot -c devuan-$chroot_arch -u root \
+        -d /usr/src/${src_name}-${orig_ver}/build \
+        -- make reallyclean
+
+    schroot -c devuan-$chroot_arch -u root \
+        -d /usr/src/${src_name}-${orig_ver}/build \
+        -- fakeroot make build_cdrom_isolinux
+    # other targets:
+    # - build_cdrom_gtk
+    # - build_cdrom-xen
+    # - build_netboot
+    # - build_netboot-gtk
+    # - build_netboot-xen
+    # - build_hd-media
+    # - build_hd-media_gtk
+    # - build_monolithic
+
+    # build finish
+    mkdir -p $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch
+    rsync --delete -rX \
+        $R/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver}/build/dest/* \
+        $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch
+
+    notice "$t done building"
+    act "saving built git head: $staged_githead"
+    heads+=(${src_name}-${src_ver} $staged_githead)
+    zkv.save heads $R/builds/${chroot_arch}/heads.zkv
+
+    return 0
 }
 
 # takes an argument: directory storing packages to inject
@@ -550,7 +602,7 @@ iso-make() {
     notice "Toasting $iso_type for $release $chroot_arch"
 
     schroot -c devuan-$chroot_arch \
-        -u root -d $root/usr/src/devuan-iso -- \
+        -u root -d /usr/src/devuan-iso -- \
         xorriso -as mkisofs -output devuan-$release-$chroot_arch-$iso_type.iso \
         -iso-level 3 -full-iso9660-filenames -r -J -no-emul-boot -boot-load-size 4 \
         -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -partition_offset 16 \
