@@ -31,10 +31,11 @@ d-i hw-detect/load_firmware boolean true
 
 d-i apt-setup/use_mirror boolean false
 
-d-i	mirror/country          Devuan Amprolla repository (merged)
-d-i	mirror/http/hostname	string apt.devuan.org
-d-i	mirror/http/directory	string /merged
-d-i	mirror/suite		    string unstable
+# will be commented out by installer if we don't give it a keyring
+# d-i	mirror/country          Devuan Amprolla repository (merged)
+# d-i	mirror/http/hostname	string apt.devuan.org
+# d-i	mirror/http/directory	string /merged
+# d-i	mirror/suite		    string unstable
 
 d-i apt-setup/services-select false
 
@@ -46,12 +47,22 @@ d-i clock-setup/ntp boolean true
 
 popularity-contest popularity-contest/participate boolean false
 
-# d-i partman-auto/init_automatically_partition select biggest_free
 d-i partman-auto/disk	string /dev/sda
-d-i partman-auto/method string regular
+d-i partman-auto/method string lvm
 d-i partman-auto/choose_recipe select atomic
 
-d-i partman-partitioning/confirm_write_new_label boolean true
+# delete old LVM config without asking
+d-i partman-lvm/device_remove_lvm boolean true
+d-i partman-lvm/confirm boolean true
+d-i partman-lvm/confirm_nooverwrite boolean true
+
+d-i partman-auto-lvm/guided_size string max
+d-i partman/default_filesystem string ext4
+
+#-----
+
+# d-i partman-partitioning/confirm_write_new_label boolean true
+d-i partman/confirm_write_new_label boolean true
 d-i partman/choose_partition select finish
 d-i partman/confirm boolean true
 d-i partman/confirm_nooverwrite boolean true
@@ -68,8 +79,12 @@ d-i passwd/username string devuan
 d-i passwd/user-password password devuan
 d-i passwd/user-password-again password devuan
 
-d-i	grub-installer/only_debian	boolean true
+d-i grub-installer/only_debian	boolean true
+d-i grub-installer/bootdev string /dev/sda
 d-i finish-install/reboot_in_progress note
 
-base-config	base-config/late_command string apt-get remove --purge exim4
-# base-config	base-config/late_command string ...
+# This command is run just before the install finishes, but when there is
+# still a usable /target directory. You can chroot to /target and use it
+# directly, or use the apt-install and in-target commands to easily install
+# packages and run commands in the target system.
+#d-i preseed/late_command string apt-install zsh; in-target chsh -s /bin/zsh
