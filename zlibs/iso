@@ -75,7 +75,7 @@ iso-add-package() {
     req=(release chroot_arch iso_type)
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
     pname=$1
-    freq=($R/builds/${chroot_arch}/$pname chroot/$chroot_arch/$iso/README.html)
+    freq=($R/builds/${chroot_arch}/$pname $R/chroot/$chroot_arch/$iso/README.html)
     reqck || return $?
 
     notice "Adding package to $release $chroot_arch $iso_type: $pname"
