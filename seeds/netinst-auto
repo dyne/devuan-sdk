@@ -47,7 +47,14 @@ d-i clock-setup/ntp boolean true
 
 popularity-contest popularity-contest/participate boolean false
 
-d-i partman-auto/disk	string /dev/sda
+# This command is run immediately before the partitioner starts. It may be
+# useful to apply dynamic partitioner preseeding that depends on the state
+# of the disks (which may not be visible when preseed/early_command runs).
+d-i partman/early_command string \
+DISKA=$(list-devices disk|head -n1);
+debconf-set partman-auto/disk "$DISKA"
+# from http://bryars.eu/2011/08/automating-debian-preseed-installs-with-raid-and-lvm/
+# d-i partman-auto/disk	string /dev/sda
 d-i partman-auto/method string lvm
 d-i partman-auto/choose_recipe select atomic
 
@@ -59,16 +66,14 @@ d-i partman-lvm/confirm_nooverwrite boolean true
 d-i partman-auto-lvm/guided_size string max
 d-i partman/default_filesystem string ext4
 
-#-----
-
-# d-i partman-partitioning/confirm_write_new_label boolean true
 d-i partman/confirm_write_new_label boolean true
 d-i partman/choose_partition select finish
 d-i partman/confirm boolean true
 d-i partman/confirm_nooverwrite boolean true
 
-
 d-i apt-setup/local0/repository string http://apt.devuan.org/merged unstable main
+d-i apt-setup/local0/key string http://devuan.org/key.pub
+d-i debian-installer/allow_unauthenticated boolean true
 
 tasksel tasksel/first multiselect standard
 d-i passwd/root-password password devuan
@@ -80,11 +85,16 @@ d-i passwd/user-password password devuan
 d-i passwd/user-password-again password devuan
 
 d-i grub-installer/only_debian	boolean true
-d-i grub-installer/bootdev string /dev/sda
+# d-i grub-installer/bootdev string /dev/sda
+# d-i grub-installer/bootdev string "$DISKA"
+d-i grub-installer/bootdev string default
+# see: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=712907
+# stupidly complex solution however, could just use $DISKA
+
 d-i finish-install/reboot_in_progress note
 
 # This command is run just before the install finishes, but when there is
 # still a usable /target directory. You can chroot to /target and use it
 # directly, or use the apt-install and in-target commands to easily install
 # packages and run commands in the target system.
-#d-i preseed/late_command string apt-install zsh; in-target chsh -s /bin/zsh
+d-i preseed/late_command string apt-install --no-recommends zsh; in-target sed -i 's/^PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
