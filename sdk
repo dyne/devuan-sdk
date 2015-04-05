@@ -80,7 +80,7 @@ source zlibs/stage
 source zlibs/build
 # source zlibs/mirror
 source zlibs/iso
-source zlibs/messaging
+source zlibs/packer
 
 # complete zuper initialization
 source zlibs/zuper.init
