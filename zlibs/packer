@@ -35,7 +35,6 @@ packer-build() {
     # TODO in zuper: xreq to check for binaries
     ckreq || return $?
 
-
     iso_path=$R/iso/devuan-$release-$chroot_arch-$iso_type.iso
     iso_md5=`md5sum $iso_path | awk '{print $1}'`
 
@@ -51,6 +50,8 @@ packer-build() {
         keep_failed_build=true
         export PACKER_LOG=1
     }
+
+    vm_output=devuan-$release-$chroot_arch-$iso_type
 
     ztmp
 
@@ -77,7 +78,7 @@ packer-build() {
             "ssh_password": "devuan",
             "ssh_port": 22,
             "ssh_wait_timeout": "90m",
-            "vm_name": "devuan-$release-$chroot_arch-$iso_type",
+            "vm_name": "$vm_output",
             "net_device": "virtio-net",
             "disk_interface": "virtio",
 
@@ -132,5 +133,16 @@ EOF
 
     [[ -d $R/packer/$target ]] && rm -rf $R/packer/$target
 
-    packer build $ztmpfile
+    packer build $ztmpfile && {
+
+        # shrink to fit
+        # TODO: investigate if this can be done in packer's post-proc
+        [[ "$target" =~ "qemu" ]] && {
+            notice "Shrinking QEMU cow to fit"
+            qemu-img convert -c -O qcow2 \
+                $R/packer/$target/$vm_output.qcow2 \
+                $R/packer/$target/devuan-$suite-$chroot_arch.qcow2
+        }
+
+    }
 }

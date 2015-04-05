@@ -2,8 +2,10 @@
 
 print "Finishing the Devuan VM"
 
-apt-get remove --purge -y exim4 systemd
+apt-get remove --purge -y exim4 exim4-base exim4-config systemd
 
 apt-get upgrade -y
 
+apt-get autoremove -y
 
+apt-get clean
