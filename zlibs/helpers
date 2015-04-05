@@ -1,7 +1,5 @@
 #!/usr/bin/env zsh
 
-html_strip() { sed 's/<[^>]\+>//g' }
-
 # get the name of the package from a filename
 file-to-name() { 
     sysread in
@@ -28,28 +26,3 @@ tarcmd() {
     fi
     return 0
 }
-
-trim() {
-    sed -e 's/^[[:space:]]*//g ; s/[[:space:]]*\$//g'
-}
-
-# zmodload zsh/mapfile
-printfile() {
-    print ${mapfile[$1]}
-}
-
-# extract all emails found in a text from stdin
-# outputs them one per line
-extract_emails() {
-awk '{ for (i=1;i<=NF;i++)
-     if ( $i ~ /[[:alnum:]]@[[:alnum:]]/ ) {
-       gsub(/<|>|,/ , "" , $i); print $i } }'
-}
-
-# zmodload zsh/regex
-isemail() {
-    [[ "$1" -regex-match "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}\b" ]] && return 0
-    
-    return 1
-}
-
