@@ -607,6 +607,6 @@ iso-make() {
 
     pushd $R
     notice "$iso_type ISO ready for $release $chroot_arch"
-    act " `ls -lh iso/devuan-$release-$chroot_arch-$iso_type.iso`"
+    act " `ls -lh $R/iso/devuan-$release-$chroot_arch-$iso_type.iso`"
     popd
 }

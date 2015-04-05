@@ -1,0 +1,9 @@
+#!/bin/sh
+
+print "Finishing the Devuan VM"
+
+apt-get remove --purge -y exim4 systemd
+
+apt-get upgrade -y
+
+

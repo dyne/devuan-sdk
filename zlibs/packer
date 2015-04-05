@@ -28,10 +28,109 @@ auto-packer() {
 packer-build() {
     fn packer-build
     target=$1
+    # default suite
+    suite=${2:-unstable}
     req=(target)
-    freq=($R/packer/$target.json)
+    freq=($R/packer)
+    # TODO in zuper: xreq to check for binaries
     ckreq || return $?
 
-    pushd $R/packer
-    packer build $target.json
+
+    iso_path=$R/iso/devuan-$release-$chroot_arch-$iso_type.iso
+    iso_md5=`md5sum $iso_path | awk '{print $1}'`
+
+    notice "Packing iso: $iso_path"
+    act "md5: $iso_md5"
+    act "suite: $suite"
+
+    packer_headless=true
+    # this works only on virtualbox-iso
+    keep_failed_build=false
+    [[ "$DEBUG" = "" ]] || {
+        packer_headless=false
+        keep_failed_build=true
+        export PACKER_LOG=1
+    }
+
+    ztmp
+
+    case $target in
+        qemu*)
+            cat <<EOF >> $ztmpfile
+{
+    "builders":
+    [
+        {
+            "type": "qemu",
+            "iso_url": "file://$iso_path",
+            "iso_checksum": "$iso_md5",
+            "iso_checksum_type": "md5",
+            "output_directory": "$R/packer/$target",
+            "ssh_wait_timeout": "30s",
+            "shutdown_command": "init 0",
+            "disk_size": 8000,
+            "format": "qcow2",
+            "headless": $packer_headless,
+            "accelerator": "kvm",
+
+            "ssh_username": "root",
+            "ssh_password": "devuan",
+            "ssh_port": 22,
+            "ssh_wait_timeout": "90m",
+            "vm_name": "devuan-$release-$chroot_arch-$iso_type",
+            "net_device": "virtio-net",
+            "disk_interface": "virtio",
+
+            "boot_command": "<enter>"
+        }
+    ]
+EOF
+            act "target: $target"
+            ;;
+
+        *)
+            error "packer target unsupported: $target"
+            return 1
+            ;;
+    esac
+
+
+    [[ "$target" =~ "-bare$" ]] || {
+        cat <<EOF >> $ztmpfile
+,
+    "provisioners":
+    [
+        {
+            "type": "file",
+            "source": "$R/packer/sources.list",
+            "destination": "/etc/apt/sources.list"
+        },
+        {
+            "type": "shell",
+            "inline": "rm -f /etc/apt/sources.list.d/devuan.list"
+        },
+        {
+            "type": "shell",
+            "inline": "apt-get update"
+        },
+        {
+            "type": "file",
+            "source": "$R/packer/devuan-base",
+            "destination": "/tmp/devuan-base"
+        },
+        {
+            "type": "shell",
+            "inline": "sh /tmp/devuan-base"
+        }
+    ]
+EOF
+    }
+
+
+    # json EOF
+    print "}" >> $ztmpfile
+
+    [[ -d $R/packer/$target ]] && rm -rf $R/packer/$target
+
+    packer build $ztmpfile
 }

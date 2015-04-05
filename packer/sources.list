@@ -1,0 +1,8 @@
+# Devuan GNU/Linux list of sources for packages
+
+deb     http://apt.devuan.org/merged unstable main
+deb-src http://apt.devuan.org/merged unstable main
+
+# We import security 
+deb     http://security.debian.org/ jessie/updates main
+deb-src http://security.debian.org/ jessie/updates main
