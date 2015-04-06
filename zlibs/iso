@@ -245,6 +245,10 @@ iso-import() {
 
     sudo umount $root/usr/src/debian-iso/$release-$chroot_arch-$iso_type
 
+    # set the splash image in place
+    sudo cp $R/pics/notoy-640x480.png \
+        $root/usr/src/devuan-iso/$release-$chroot_arch-$iso_type/isolinux/splash.png
+
 }
 
 iso-build-installer() {
