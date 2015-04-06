@@ -11,13 +11,7 @@ release=jessie
 section=main
 
 
-# TODO change with final release of Debian when ready
+# TODO: make a iso skeleton of our own
 iso_mirror=http://mirror.debianfork.org
-# amd64/iso-cd/debian-jessie-DI-rc1-amd64-netinst.iso
-
-# deboostrap settings for chroots
-chroot_include=bzip2,less,dialog,sysvinit,debian-keyring,apt-utils
-# zsh,vim-nox,,xorriso,cpio,xz-utils,dpkg-dev,gcc,g++,autoconf,automake,libtool
-chroot_exclude=systemd-sysv
-chroot_variant=buildd
-chroot_comp=main # components
+# amd64/iso-cd/debian-jessie-DI-rc2-amd64-netinst.iso
+# amd64/iso-cd/debian-jessie-DI-rc2-i386-netinst.iso

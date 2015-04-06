@@ -109,6 +109,12 @@ chroot-create() {
 
     notice "First stage debootstrap"
 
+    # chroot configuration
+    chroot_include=bzip2,less,dialog,sysvinit,debian-keyring,apt-utils,fakeroot,zsh
+    chroot_exclude=systemd-sysv
+    chroot_variant=buildd
+    chroot_comp=main
+
     sudo \
         debootstrap --components=$chroot_comp \
         --variant=$chroot_variant \
