@@ -88,6 +88,8 @@ EOF
 
     rm $tmp
 
+    notice "Devuan schroot configuration created for arch $chroot_arch"
+    func "found in: /etc/schroot/chroot.d/devuan-$chroot_arch"
     return $res
 }
 

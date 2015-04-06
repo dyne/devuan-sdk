@@ -77,7 +77,9 @@ which we are building. At the moment one can choose between `amd64`
 and `i386`, we will choose the latter:
 
 ```
-auto-chroot i386
+arch i386
+chroot-config
+chroot-create
 ```
 
 Beware, this will take long: will run debootstrap, download Debian's

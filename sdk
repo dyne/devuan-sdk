@@ -39,7 +39,6 @@ source zlibs/zuper
 # config variables
 vars+=(mirror release section)
 vars+=(chroot_include chroot_exclude chroot_variant chroot_comp)
-vars+=(debug cur_fun)
 
 # global variables
 vars+=(R sdk_loaded)
