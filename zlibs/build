@@ -20,16 +20,11 @@
 # this source code; if not, write to: Free Software Foundation, Inc.,
 # 675 Mass Ave, Cambridge, MA 02139, USA.
 
-vars+=( force )
-
-build auto-build build-auto build-force() {
+build auto-build build-auto() {
     fn build
     req=(chroot_arch)
     freq=($R/chroot/$chroot_arch/etc/passwd)
     reqck || return $?
-
-    force=${force:-0}
-    [[ "$0" = "build-force" ]] && force=1
 
     pushd $R
 
@@ -72,7 +67,7 @@ build auto-build build-auto build-force() {
         package $t
 
         # check if package should be built
-        build-check || continue
+        build-check $* || continue
 
         # clean up the build dir in chroot
         build-clean
@@ -138,20 +133,12 @@ build-check() {
     [[ "$staged_githead" = "$built_head" ]] && {
         # already build, skip
         notice "Current staged source is already built"
-        func "self-command: $0"
-        if [[ $force = 1 ]]; then
+        if [[ "$*" =~ "force" ]]; then
             act "forcing rebuild of $src_name"
         else
-            act "skipping. to force rebuild use: build-force $src_name"
+            act "skipping. to force rebuild use: build force $src_name"
             return 1
         fi
-    }
-
-    # check if the build should be skipped
-    [[ -r $R/stage/skip-$src_name ]] && [[ "$0" != "build-force" ]] && {
-        act "staged source tagged to be skip: stage/skip-$src_name"
-        act "to force build delete skip file or use: build-force $src_name"
-        return 1
     }
 
     return 0

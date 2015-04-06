@@ -51,7 +51,7 @@ BEGIN { found=0 }
   if(found == 12) print $0
 }
 /Maintainer/ { exit }
-' | html_strip | sed 's/\[// ; s/\]//'`)
+' | sed 's/<[^>]\+>//g ; s/\[// ; s/\]//'`)
 
     func "found: $src_files"
 
