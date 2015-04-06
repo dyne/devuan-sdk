@@ -35,7 +35,15 @@ packer-build() {
     # TODO in zuper: xreq to check for binaries
     ckreq || return $?
 
-    iso_path=$R/iso/devuan-$release-$chroot_arch-$iso_type.iso
+    iso_path=$R/iso/devuan-$release-$chroot_arch-netinst-auto.iso
+
+    [[ -r $iso_path ]] || {
+        error "ISO missing: netinst-auto"
+        act "To build vm images with packer you need to first build a netinst-auto iso"
+        act "use the commands: 'iso netinst-auto' and then 'auto-iso'"
+        return 1
+    }
+
     iso_md5=`md5sum $iso_path | awk '{print $1}'`
 
     notice "Packing iso: $iso_path"
@@ -103,19 +111,6 @@ EOF
     [
         {
             "type": "file",
-            "source": "$R/packer/sources.list",
-            "destination": "/etc/apt/sources.list"
-        },
-        {
-            "type": "shell",
-            "inline": "rm -f /etc/apt/sources.list.d/devuan.list"
-        },
-        {
-            "type": "shell",
-            "inline": "apt-get update"
-        },
-        {
-            "type": "file",
             "source": "$R/packer/devuan-base",
             "destination": "/tmp/devuan-base"
         },
@@ -141,7 +136,9 @@ EOF
             notice "Shrinking QEMU cow to fit"
             qemu-img convert -c -O qcow2 \
                 $R/packer/$target/$vm_output.qcow2 \
-                $R/packer/$target/devuan-$suite-$chroot_arch.qcow2
+                $R/packer/$target/devuan-$suite-$chroot_arch.qcow2 \
+                && rm -f $R/packer/$target/$vm_output.qcow2
+
         }
 
     }
