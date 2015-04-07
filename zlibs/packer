@@ -113,6 +113,11 @@ EOF
     [
         {
             "type": "file",
+            "source": "$R/packer/sources.list",
+            "destination": "/etc/apt/sources.list"
+        },
+        {
+            "type": "file",
             "source": "$R/packer/devuan-base",
             "destination": "/tmp/devuan-base"
         },

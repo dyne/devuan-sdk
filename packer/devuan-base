@@ -9,8 +9,10 @@ apt-get remove --purge -y reportbug
 
 apt-get autoremove -y
 
+apt-get -o Acquire::Check-Valid-Until=false update -y
+
 apt-get -o Acquire::Check-Valid-Until=false upgrade -y
 
-apt-get install -y zsh
+apt-get -o Acquire::Check-Valid-Until=false install -y zsh
 
 apt-get clean
