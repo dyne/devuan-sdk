@@ -1,11 +1,16 @@
 #!/bin/sh
 
-print "Finishing the Devuan VM"
+echo "Finishing the Devuan VM"
 
-apt-get remove --purge -y exim4 exim4-base exim4-config systemd
+apt-get remove --purge -y systemd
+apt-get remove --purge -y exim4 exim4-base exim4-config
+apt-get remove --purge -y xauth
+apt-get remove --purge -y reportbug
+
+apt-get autoremove -y
 
 apt-get -o Acquire::Check-Valid-Until=false upgrade -y
 
-apt-get autoremove -y
+apt-get install -y zsh
 
 apt-get clean
