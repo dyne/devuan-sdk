@@ -7,12 +7,14 @@ apt-get remove --purge -y exim4 exim4-base exim4-config
 apt-get remove --purge -y xauth
 apt-get remove --purge -y reportbug
 
-apt-get autoremove -y
-
 apt-get -o Acquire::Check-Valid-Until=false update -y
 
 apt-get -o Acquire::Check-Valid-Until=false upgrade -y
 
 apt-get -o Acquire::Check-Valid-Until=false install -y zsh
+
+apt-get -o Acquire::Check-Valid-Until=false install -y guile-2.0
+
+apt-get autoremove -y
 
 apt-get clean
