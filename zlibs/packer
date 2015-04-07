@@ -27,9 +27,9 @@ auto-packer() {
 
 packer-build() {
     fn packer-build
-    target=$1
     # default suite
     suite=${2:-unstable}
+    target=$1-$suite-$chroot_arch
     req=(target)
     freq=($R/packer)
     # TODO in zuper: xreq to check for binaries
@@ -104,6 +104,8 @@ EOF
     esac
 
 
+    # any target can be *-bare and not have any provisioning scripts
+    # useful for debugging (qemu images are deleted on script failure)
     [[ "$target" =~ "-bare$" ]] || {
         cat <<EOF >> $ztmpfile
 ,
