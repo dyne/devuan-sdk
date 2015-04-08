@@ -42,9 +42,10 @@ vars+=(chroot_include chroot_exclude chroot_variant chroot_comp)
 
 # global variables
 vars+=(R sdk_loaded)
+
 # we assume source sdk is always run from the source dir
-# which is the "root" of the program, $R
-R=`pwd`
+# which is the "root" of the program, $R, or env DEVUAN_SDK
+R=${DEVUAN_SDK:-`pwd`}
 
 # package import variables
 vars+=(source_url)
