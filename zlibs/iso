@@ -208,7 +208,6 @@ iso-import() {
             ;;
     esac
 
-
     # TODO change with final release of Debian when ready
     debian_iso_url=$iso_mirror/$iso_img
 
@@ -273,10 +272,7 @@ iso-build-installer() {
         -d /usr/src/${src_name}-${orig_ver}/build \
         -- make reallyclean
 
-    schroot -c devuan-$chroot_arch -u root \
-        -d /usr/src/${src_name}-${orig_ver}/build \
-        -- fakeroot make build_cdrom_isolinux
-    # other targets:
+    # possible targets:
     # - build_cdrom_gtk
     # - build_cdrom-xen
     # - build_netboot
@@ -285,17 +281,25 @@ iso-build-installer() {
     # - build_hd-media
     # - build_hd-media_gtk
     # - build_monolithic
+    schroot -c devuan-$chroot_arch -u root \
+        -d /usr/src/${src_name}-${orig_ver}/build \
+        -- fakeroot make build_cdrom_isolinux \
+        && { 
+        # build finish
 
-    # build finish
-    mkdir -p $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch
-    rsync --delete -rX \
-        $R/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver}/build/dest/* \
-        $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch
+        mkdir -p $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch
+        rsync --delete -rX \
+            $R/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver}/build/dest/* \
+            $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch
 
-    notice "$t done building"
-    act "saving built git head: $staged_githead"
-    heads+=(${src_name}-${src_ver} $staged_githead)
-    zkv.save heads $R/builds/${chroot_arch}/heads.zkv
+        notice "$t done building"
+        act "saving built git head: $staged_githead"
+        heads+=(${src_name}-${src_ver} $staged_githead)
+        zkv.save heads $R/builds/${chroot_arch}/heads.zkv
+
+        build-clean
+
+    }
 
     return 0
 }
@@ -604,10 +608,15 @@ iso-make() {
         -boot-info-table -b isolinux/isolinux.bin -c isolinux/boot.cat \
         ./$release-$chroot_arch-$iso_type
 
+    # move the final iso out of the chroot
     mkdir -p $R/iso
     sudo \
         mv $root/usr/src/devuan-iso/devuan-$release-$chroot_arch-$iso_type.iso \
         $R/iso/
+
+    # cleanup the source directory used for the iso
+    sudo \
+        rm -rf $root/usr/src/devuan-iso/$release-$chroot_arch-$iso_type
 
     pushd $R
     notice "$iso_type ISO ready for $release $chroot_arch"

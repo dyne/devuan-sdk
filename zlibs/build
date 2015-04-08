@@ -94,6 +94,8 @@ build auto-build build-auto() {
             act "saving built git head: $staged_githead"
             heads+=(${src_name}-${src_ver} $staged_githead)
             zkv.save heads $R/builds/${chroot_arch}/heads.zkv
+
+            build-clean
         }
 
     done
@@ -137,6 +139,7 @@ build-check() {
             act "forcing rebuild of $src_name"
         else
             act "skipping. to force rebuild use: build force $src_name"
+            build-clean # just to make sure space isn't wasted
             return 1
         fi
     }
@@ -197,9 +200,11 @@ build-clean() {
 
     orig_ver=${src_ver%-*}
 
-    notice "Clean source in chroot /usr/src/$src_name-${orig_ver}"
-    sudo \
-        rm -rf $R/chroot/$chroot_arch/usr/src/$src_name-${orig_ver}
+    [[ -d $R/chroot/$chroot_arch/usr/src/$src_name-${orig_ver} ]] && {
+        notice "Clean source in chroot /usr/src/$src_name-${orig_ver}"
+        sudo \
+            rm -rf $R/chroot/$chroot_arch/usr/src/$src_name-${orig_ver}
+    }
 
 }
 
@@ -314,7 +319,7 @@ build-retry() {
 
     # check if its debian-installer
     [[ "$src_name" = "debian-installer" ]] && {
-        error "Cannot run build-retry on debian-installer, use build"
+        error "Cannot run build-retry on debian-installer"
         return 1
     }
 
@@ -363,13 +368,13 @@ build-finish() {
 
         [[ -r $R/$src/${b}_${src_ver}_${arch}.udeb ]] && {
             sudo \
-                cp $R/$src/${b}_${src_ver}_${arch}.udeb \
+                mv $R/$src/${b}_${src_ver}_${arch}.udeb \
                 $R/builds/${chroot_arch}/$src_name
         }
 
         [[ -r $R/$src/${b}_${src_ver}_${arch}.deb ]] && {
             sudo \
-                cp $R/$src/${b}_${src_ver}_${arch}.deb \
+                mv $R/$src/${b}_${src_ver}_${arch}.deb \
                 $R/builds/${chroot_arch}/$src_name
         }
 
