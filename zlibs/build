@@ -34,7 +34,6 @@ build auto-build build-auto() {
 
         notice "Building all the cast on stage"
         pushd $R/stage
-        typeset -A casting
         zkv.load casting.zkv
         for s in ${(k)casting}; do
             [[ -d $s ]] && target+=($s)

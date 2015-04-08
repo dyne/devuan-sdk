@@ -55,8 +55,7 @@ vars+=(staged_ver staged_githead)
 arrs+=(src_files)
 
 # global maps (TODO in zuper)
-typeset -A hash_map
-typeset -A heads
+maps+=(hash_map heads casting)
 
 # chroot variables
 vars+=(chroot_arch chroot_shell)
