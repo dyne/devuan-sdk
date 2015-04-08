@@ -23,6 +23,14 @@
 # default shell for the chroot
 chroot_shell=/bin/dash
 
+# destructor for all open chroot sessions
+chroot-destructor() {
+    for _c in `schroot --list --all-sessions`; do
+        schroot --end-session -c $_c
+    done
+}
+destruens+=(chroot-destructor)
+
 auto-chroot chroot-auto() {
     arch $1
     chroot-config
@@ -177,7 +185,6 @@ chroot-enter() {
     reqck || return $?
 
     schroot -c devuan-$chroot_arch -u root -d /root -s /bin/bash
-
 }
 
 
