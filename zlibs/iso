@@ -47,9 +47,11 @@ auto-iso() {
 
     iso-build-installer
 
+    rm -f $R/iso/devuan-$release-$chroot_arch-$iso_type.packages.log
+    LOG=$R/iso/devuan-$release-$chroot_arch-$iso_type.packages.log
     iso-replace-packages
-
     iso-seed
+    LOG=""
 
     iso-index
 
@@ -550,7 +552,7 @@ iso-seed() {
 
     # inject own debian-installer if in builds
     [[ -r $R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch ]] && {
-        notice "adding own build of debian-installer for $chroot_arch"
+        notice "Adding own build of debian-installer for $chroot_arch"
         di_path=$R/builds/${chroot_arch}/debian-installer/dest-$chroot_arch/cdrom
         case $chroot_arch in
             i386)
