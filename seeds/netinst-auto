@@ -71,9 +71,9 @@ d-i partman/choose_partition select finish
 d-i partman/confirm boolean true
 d-i partman/confirm_nooverwrite boolean true
 
-d-i apt-setup/local0/repository string http://apt.devuan.org/merged unstable main
-d-i apt-setup/local0/key string http://devuan.org/key.pub
-d-i debian-installer/allow_unauthenticated boolean true
+# d-i apt-setup/local0/repository string http://apt.devuan.org/merged unstable main
+# d-i apt-setup/local0/key string http://devuan.org/key.pub
+# d-i debian-installer/allow_unauthenticated boolean true
 
 tasksel tasksel/first multiselect standard
 d-i passwd/root-password password devuan
