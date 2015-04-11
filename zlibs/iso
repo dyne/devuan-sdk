@@ -514,7 +514,7 @@ iso-seed() {
     #+ package remove
     # contents are found in the global array config_section
 
-    mkdir -p $root/$iso/.disk
+    sudo mkdir -p $root/$iso/.disk
 
     func "base exclude"
     config.section.read $R/seeds/$iso_type "base exclude"
