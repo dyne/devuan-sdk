@@ -2,6 +2,12 @@
 
 echo "Finishing the Devuan VM"
 
+# here set the suit and components to avoid dialogs
+echo "devuan-baseconf suite string jessie"      | debconf-set-selections
+echo "devuan-baseconf components string main"   | debconf-set-selections
+echo "devuan-baseconf note seen true"           | debconf-set-selections
+echo "debconf priority select critical"         | debconf-set-selections
+
 apt-get remove --purge -y systemd
 apt-get remove --purge -y exim4 exim4-base exim4-config
 apt-get remove --purge -y xauth
@@ -9,7 +15,7 @@ apt-get remove --purge -y reportbug
 
 apt-get -o Acquire::Check-Valid-Until=false update -y
 
-apt-get -o Acquire::Check-Valid-Until=false upgrade -y
+DEBIAN_FRONTEND='noninteractive' apt-get -o Acquire::Check-Valid-Until=false upgrade -y
 
 apt-get -o Acquire::Check-Valid-Until=false install -y zsh
 
@@ -18,3 +24,5 @@ apt-get -o Acquire::Check-Valid-Until=false install -y guile-2.0
 apt-get autoremove -y
 
 apt-get clean
+
+echo "debconf priority select medium"         | debconf-set-selections
