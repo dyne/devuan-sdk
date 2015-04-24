@@ -101,4 +101,4 @@ else
     export RPROMPT=Devuan
 fi
 
-return 0
+${=*}

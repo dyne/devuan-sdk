@@ -199,7 +199,7 @@ iso-import() {
     reqck || return $?
 
     case $iso_type in
-        netinst*)
+        netinst*|packer*)
             iso_img=debian-$release-DI-rc2-$chroot_arch-netinst.iso
             ;;
         xfce*)
@@ -261,6 +261,7 @@ iso-build-installer() {
     notice "Building debian-installer"
     package debian-installer
 
+    # comment to always rebuild debian-installer
     build-check || return 0
 
     build-clean
