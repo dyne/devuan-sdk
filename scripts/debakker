@@ -1,0 +1,219 @@
+#!/usr/bin/env zsh
+#
+# Devuan SDK - build management
+#
+# Copyright (C) 2015 Dyne.org Foundation
+#
+# Devuan SDK is designed, written and maintained by Denis Roio <jaromil@dyne.org>
+#
+# This source code is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This source code is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  Please refer
+# to the GNU Public License for more details.
+#
+# You should have received a copy of the GNU Public License along with
+# this source code; if not, write to: Free Software Foundation, Inc.,
+# 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+# Bakes an online iso into VMs
+# run from SDK root as ./scripts/debakker
+
+DEBUG=1
+
+source sdk
+
+# check requirements
+
+required=(xorriso packer rsync sudo)
+for i in $required; do
+    isfound $i || {
+    error "$i is required, but is not found on this system"
+    zerr }
+done
+
+if [[ -r /usr/lib/syslinux/isohdpfx.bin ]]; then
+    isohdpfx=/usr/lib/syslinux/isohdpfx.bin
+elif [[ -r /usr/lib/ISOLINUX/isohdpfx.bin ]]; then
+    isohdpfx=/usr/lib/ISOLINUX/isohdpfx.bin
+else
+    error "Isolinux/Syslinux not found: isohdpfx.bin"
+    zerr
+fi
+
+iso_url=${1:-http://packages.devuan.org/alpha-iso-cd/devuan-jessie-netboot-i386-alpha2.iso}
+iso_name=${iso_url##*/}
+iso_sha1=`curl -s $iso_url.sha1sum`
+iso_sha1=${iso_sha1[(w)1]}
+
+notice "Baking iso: $iso_name"
+
+mkdir -p $R/packer/iso
+iso_path=$R/packer/iso/${iso_name}
+[[ -r $R/packer/iso/$iso_name ]] || curl ${iso_url} -o $iso_path
+
+file_sha1=`sha1sum $iso_path`
+file_sha1=${file_sha1[(w)1]}
+
+if [[ "$file_sha1" = "$iso_sha1" ]]; then
+    act "SHA sums match correctly: $iso_sha1"
+else
+    error "SHA sum comparison failed, corrupted iso."
+    zerr
+fi
+
+vm_output=${iso_name%%.iso*}
+strtok $vm_output "-"
+# filename format: devuan-jessie-netboot-i386-alpha2
+suite=${tok[2]}
+installer=${tok[3]}
+arch=${tok[4]}
+version=${tok[5]}
+
+act "suite: $suite"
+act "installer: $installer"
+act "arch: $arch"
+act "version: $version"
+
+# destination dir
+dest=$R/packer/$suite-$version/$arch
+act "destination: $dest"
+
+# preseed
+seed=$R/seeds/$installer-auto
+notice "Injecting preseed: $seed"
+[[ -r $seed ]] || {
+    error "seed not found: $seed"
+    zerr }
+config.section.read $seed "debian preseed"
+ztmp
+for i in $config_section; do
+    print $i >> $ztmpfile
+    func "$i"
+done
+preseed=$ztmpfile
+
+# loop mount
+tmploop=$R/packer/packer_cache/$vm_output.loop
+newiso=$R/packer/packer_cache/$vm_output.new
+mkdir -p $tmploop
+act "performing loop mount the iso (root required)"
+sudo mount -o loop $iso_path $tmploop
+act "copying iso files into work directory"
+sudo rm -rf $newiso
+rsync -a -H --exclude=TRANS.TBL $tmploop/ $newiso
+sudo umount $tmploop
+chmod +w $newiso
+
+initrds=`find $newiso -name initrd.gz`
+for i in ${(f)initrds}; do
+    act "$i - injecting preseed"
+    chmod +w $i
+    ztmp
+    mkdir -p $ztmpfile.dir
+    pushd $ztmpfile.dir
+    gzip -d < $i \
+        | sudo cpio --extract  --make-directories --no-absolute-filenames
+    cp $preseed $ztmpfile.dir/preseed.cfg
+    rm -f $i
+    find . | cpio -H newc --create | gzip -9 > $i
+    act "$i - succesfully injected"
+    chmod -w $i
+    popd
+    sudo rm -rf $ztmpfile.dir
+done
+
+# update md5sums?
+# md5sum `find -follow -type f` > md5sum.txt
+
+act "Toasting the new iso"
+iso_ready=$R/packer/packer_cache/$vm_output-ready.iso
+xorriso -as mkisofs -output $iso_ready \
+    -iso-level 3 -full-iso9660-filenames -r \
+    -J -no-emul-boot -boot-load-size 4 \
+    -isohybrid-mbr $isohdpfx -partition_offset 16 \
+    -boot-info-table -b isolinux.bin -c boot.cat \
+    $newiso
+sha1_ready=`sha1sum $iso_ready`
+sha1_ready=${sha1_ready[(w)1]}
+
+
+# QEMU is the only default for now
+target=qemu
+
+# debugging
+packer_headless=true
+# this works only on virtualbox-iso
+keep_failed_build=false
+[[ $DEBUG = 1 ]] && {
+    packer_headless=false
+    keep_failed_build=true
+    export PACKER_LOG=1
+}
+
+
+ztmp
+case $target in
+    qemu*)
+        cat <<EOF >> $ztmpfile
+{
+    "builders":
+    [
+        {
+            "type": "qemu",
+            "iso_url": "file://$iso_ready",
+            "iso_checksum": "$sha1_ready",
+            "iso_checksum_type": "sha1",
+            "output_directory": "$dest",
+            "ssh_wait_timeout": "30s",
+            "shutdown_command": "init 0",
+            "disk_size": 8192,
+            "format": "qcow2",
+            "headless": $packer_headless,
+            "accelerator": "kvm",
+
+            "ssh_username": "root",
+            "ssh_password": "devuan",
+            "ssh_port": 22,
+            "ssh_wait_timeout": "90m",
+            "vm_name": "$iso_name",
+            "net_device": "virtio-net",
+            "disk_interface": "virtio",
+
+            "boot_command": "<enter>"
+        }
+    ]
+,
+    "provisioners":
+    [
+        {
+            "type": "file",
+            "source": "$R/packer/sources.list",
+            "destination": "/etc/apt/sources.list"
+        },
+        {
+            "type": "file",
+            "source": "$R/packer/devuan-base",
+            "destination": "/tmp/devuan-base"
+        },
+        {
+            "type": "shell",
+            "inline": "sh /tmp/devuan-base"
+        }
+    ]
+}
+EOF
+        ;;
+    
+    *)
+        error "packer target unsupported: $target"
+        return 1
+        ;;
+esac
+
+packer build $ztmpfile
