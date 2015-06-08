@@ -21,7 +21,7 @@ apt-get -o Acquire::Check-Valid-Until=false install -y zsh
 
 apt-get -o Acquire::Check-Valid-Until=false install -y guile-2.0
 
-apt-get autoremove -y
+DEBIAN_FRONTEND='noninteractive' apt-get autoremove -y
 
 apt-get clean
 

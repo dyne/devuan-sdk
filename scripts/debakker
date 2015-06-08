@@ -80,9 +80,6 @@ act "installer: $installer"
 act "arch: $arch"
 act "version: $version"
 
-# destination dir
-dest=$R/packer/$suite-$version/$arch
-act "destination: $dest"
 
 # preseed
 seed=$R/seeds/$installer-auto
@@ -157,6 +154,12 @@ keep_failed_build=false
 }
 
 
+# destination dir
+dest=$R/packer/$suite-$version/$arch-installer-wip
+[[ -r $dest ]] && {
+    act "clean destination: $dest"
+    rm -rf $dest }
+
 ztmp
 case $target in
     qemu*)
@@ -216,4 +219,14 @@ EOF
         ;;
 esac
 
-packer build $ztmpfile
+packer build $ztmpfile && { # shrink to fit
+    [[ "$target" =~ "qemu" ]] && {
+        mkdir -p $R/pub/qemu-$arch
+        notice "Shrinking QEMU cow to fit"
+        qemu_convert_args=()
+        [[ $QUIET = 1 ]] || qemu_convert_args=(-p)
+        qemu-img convert -c $qemu_convert_args -O qcow2 $dest \
+        $R/pub/qemu-$arch/devuan-$suite-$installer-$arch-$version.qcow2
+        [[ $DEBUG = 1 ]] || rm -f $dest
+    }
+}

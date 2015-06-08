@@ -1,4 +1,4 @@
 # Devuan GNU/Linux list of sources for packages
 
-deb     http://apt.devuan.org/merged unstable main
-deb-src http://apt.devuan.org/merged unstable main
+deb     http://packages.devuan.org/merged jessie main
+deb-src http://packages.devuan.org/merged jessie main
