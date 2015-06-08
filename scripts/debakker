@@ -24,7 +24,7 @@
 # Bakes an online iso into VMs
 # run from SDK root as ./scripts/debakker
 
-DEBUG=1
+# DEBUG=1
 
 source sdk
 
