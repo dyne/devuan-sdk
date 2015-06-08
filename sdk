@@ -32,6 +32,7 @@ zmodload zsh/regex
 
 # adopts Zsh extension "Zuper"
 zkv=1
+helpers=1
 source zlibs/zuper
 
 ## declare global variables

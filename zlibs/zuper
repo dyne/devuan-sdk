@@ -133,7 +133,21 @@ fn() {
     fun="$@"
     req=()
     freq=()
+    func "$fun"
 }
+
+zerr() {
+    error "error in: ${fun:-$last_notice}"
+    [[ "$last_func"   = "" ]] || warn "called in: $last_func"
+    [[ "$last_act"    = "" ]] || warn "called in: $last_act"
+    [[ "$last_notice" = "" ]] || warn "called in: $last_notice"
+    # [[ "$fun"         = "" ]] || warn "called in: $fun"
+    TRAPEXIT() {
+        error "error reported, operation aborted."
+    }
+    return 1
+}
+
 
 ckreq reqck() {
     err=0
@@ -153,17 +167,8 @@ ckreq reqck() {
             err=1
         }
     done
+    [[ $err == 1 ]] && zerr
     return $err
-}
-
-zerr() {
-    error "error in: ${fun:-$last_notice}"
-    [[ "$last_func"   = "" ]] || warn "called in: $last_func"
-    [[ "$last_act"    = "" ]] || warn "called in: $last_act"
-    [[ "$last_notice" = "" ]] || warn "called in: $last_notice"
-    [[ "$fun"         = "" ]] || warn "called in: $fun"
-    error "error reported, operation aborted."
-    return 1
 }
 
 zdump() {
@@ -257,6 +262,31 @@ _ztmp_destructor() {
 arrs+=(tmpfiles)
 destruens+=(_ztmp_destructor)
 
+# tokenizer, works only with one char length delimiters
+# saves everything in global array tok=()
+arrs+=(tok)
+strtok() {
+    fn "strtok $*"
+    _string="$1"
+    _delim="$2"
+    req=(_string _delim)
+    ckreq || return $?
+
+    tok=()
+    f=0
+    for c in {1..${#_string}}; do
+        if [[ "${_string[(e)$c]}" == "$_delim" ]]; then
+            # check if not empty
+            t=${_string[(e)$(($f + 1)),$(($c - 1))]}
+            [[ "$t" == "" ]] || tok+=($t)
+            # save last found
+            f=$c
+        fi
+    done
+    # add last token
+    t=${_string[(e)$(($f + 1)),$c]}
+    [[ "$t" == "" ]] || tok+=($t)
+}
 
 # optional: define zkv=1 on source
 
@@ -327,74 +357,90 @@ EOF
 
 }
 
-# optional: define zconsul=1 on source
+# optional: define restful=1 on source
 
-[[ "$consul" = "" ]] || {
+[[ "$restful" = "" ]] || {
 
     ########
-    # Consul
+    # Restful API client
     # there is a clear zsh optimization here in get/set kv
     # using zsh/tcp instead of spawning curl
     # and perhaps querying with one call using ?recursive
 
     zmodload zsh/net/tcp
 
-    function zconsul.set() {
-        fn "zconsul.set $*"
+    function restful.put() {
+        # $1 = hostname
+        # $2 = port
+        # $3 = path
+        # $4 = key
+        # $5 = value
 
-        # checks if consul running up to the caller
+        fn "restful.put $*"
 
-        _host=$1 # ip address
-        _port=${host[(ws@:@)2]:-8500}
-        _k=$2 # key name
-        _v=$3 # value
+        # to check if the http service is running is up to the caller
 
-        req=(_host _port _k _v)
+        _host=${1} # ip address
+        _port=${2}
+        _path=${3}
+        _k="$4" # key name
+        _v="$5" # value
+
+        req=(_host _k _v)
         ckreq || return $?
 
-        ztcp $_host $_port || {
-            zerr
-            return 1
-        }
+        if ztcp $_host $_port; then
 
-        _fd=$REPLY
-        #    func "tcp open on fd $fd"
-        cat <<EOF >& $_fd
-PUT /v1/kv/$_k HTTP/1.1
+
+            # TODO: work out various parsers, this one works with consul.io
+
+            _fd=$REPLY
+            #    func "tcp open on fd $fd"
+            cat <<EOF >& $_fd
+PUT ${_path}${_k} HTTP/1.1
 User-Agent: Zuper/$zuper_version
-Host: $_host:$_port
+Host: ${_host}:${_port}
 Accept: */*
-Content-Length: ${#v}
+Content-Length: ${#_v}
 Content-Type: application/x-www-form-urlencoded
 
 EOF
 
-        print -n "$v" >& $_fd
+            print -n "$_v" >& $_fd
 
-        sysread -i $_fd _res
+            sysread -i $_fd _res
 
-        # close connection
-        ztcp -c $_fd
+            # close connection
+            ztcp -c $_fd
 
-        [[ "$_res" =~ "true" ]] || {
-            warn "cannot set key/value in consul: $_k = $_v"
+            [[ "$_res" =~ "true" ]] || {
+                warn "failed PUT on restful key/value"
+                warn "endpoint: ${_host}:${_port}${_path}"
+                warn "resource: $_k = $_v"
+                print - "$_res"
+                zerr
+                return 1
+            }
+
+        else
+            error "cannot connect to restful service: $_host:$_port"
             zerr
             return 1
-        }
+        fi
 
         return 0
 
     }
 
-    zconsul.get() {
-        fn "zconsul.get $*"
+    restful.get() {
+        fn "restful.get $*"
 
-        _host=$1 # ip address
-        _port=${host[(ws@:@)2]:-8500}
-        _k=$2 # key name
-        _v=$3 # value
+        _host=${1}
+        _port=${2}
+        _path=${3}
+        _k=$4 # key name
 
-        req=(_host _port _k _v)
+        req=(_host _k)
         ckreq || return $?
 
         _k=$1
@@ -406,8 +452,10 @@ EOF
 
         _fd=$REPLY
 
+        # TODO: work out various parsers, this one works with consul.io
+
         cat <<EOF >& $_fd
-GET /v1/kv/$k HTTP/1.1
+GET ${_path}${_k} HTTP/1.1
 User-Agent: Zuper/$zuper_version
 Host: $_host:$_port
 Accept: */*
@@ -511,6 +559,13 @@ s/"/\&quot;/g
 # }}} Helpers
 
 # {{{ Config
+
+# This is not a full config parser, but its a mechanism to read single
+# sections of configuration files that are separated using various
+# syntax methods. The only method supported is now org-mode whose
+# sections start with #+ . It fills in the global array
+# $config_section which can be read out to a file or interpreted in
+# memory, whatever syntax it may contain.
 
 vars+=(config_section_type)
 arrs+=(config_section)
