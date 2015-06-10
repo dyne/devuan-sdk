@@ -224,9 +224,9 @@ packer build $ztmpfile && { # shrink to fit
         mkdir -p $R/pub/qemu-$arch
         notice "Shrinking QEMU cow to fit"
         qemu_convert_args=()
-        [[ $QUIET = 1 ]] || qemu_convert_args=(-p)
-        qemu-img convert -c $qemu_convert_args -O qcow2 $dest \
-        $R/pub/qemu-$arch/devuan-$suite-$installer-$arch-$version.qcow2
-        [[ $DEBUG = 1 ]] || rm -f $dest
+        # [[ $QUIET = 1 ]] || qemu_convert_args=(-p)
+        qemu-img convert -c -p -O qcow2 $dest \
+            $R/pub/qemu-$arch/devuan-$suite-$installer-$arch-$version.qcow2
+        [[ $DEBUG = 1 ]] || rm -rf $dest
     }
 }
