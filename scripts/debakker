@@ -150,7 +150,7 @@ sha1_ready=${sha1_ready[(w)1]}
     error "Error creating a new iso"
     zerr }
 
-[[ $DEBUG = 1 ]] || rm -rf $newiso
+[[ $DEBUG = 1 ]] || sudo rm -rf $newiso
 
 # QEMU is the only default for now
 target=qemu
