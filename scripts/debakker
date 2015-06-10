@@ -111,6 +111,7 @@ act "copying iso files into work directory"
 sudo rm -rf $newiso
 rsync -a -H --exclude=TRANS.TBL $tmploop/ $newiso
 sudo umount $tmploop
+rmdir $tmploop
 chmod +w $newiso
 
 initrds=`find $newiso -name initrd.gz`
@@ -145,6 +146,11 @@ xorriso -as mkisofs -output $iso_ready \
 sha1_ready=`sha1sum $iso_ready`
 sha1_ready=${sha1_ready[(w)1]}
 
+[[ -r $iso_ready ]] || {
+    error "Error creating a new iso"
+    zerr }
+
+[[ $DEBUG = 1 ]] || rm -rf $newiso
 
 # QEMU is the only default for now
 target=qemu
@@ -231,8 +237,13 @@ packer build $ztmpfile && { # shrink to fit
         notice "Shrinking QEMU cow to fit"
         qemu_convert_args=()
         # [[ $QUIET = 1 ]] || qemu_convert_args=(-p)
-        qemu-img convert -c -p -O qcow2 $dest \
+        qemu-img convert -c -p -O qcow2 $dest/$iso_name.qcow2 \
             $R/pub/qemu-$arch/devuan-$suite-$installer-$arch-$version.qcow2
-        [[ $DEBUG = 1 ]] || rm -rf $dest
     }
+}
+
+# cleanup
+[[ $DEBUG = 1 ]] || {
+    rm -rf $dest
+    rm $iso_ready
 }
