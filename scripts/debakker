@@ -28,6 +28,13 @@
 
 source sdk
 
+# arguments passed via env vars
+REPO=${REPO:-http://packages.devuan.org/devuan/dists}
+SUITE=${SUITE:-jessie}
+ARCH=${ARCH:-i386}
+INST=${INST:-netboot}
+VERSION=${VERSION:-alpha2}
+
 # check requirements
 
 required=(xorriso packer rsync sudo)
@@ -46,49 +53,41 @@ else
     zerr
 fi
 
-[[ -z $1 ]] && {
-    act "usage: ./scripts/debakker url-to-iso"
-    act "i.e: ./scripts/debakker http://files.devuan.org/devuan-jessie-netboot-amd64-alpha2.iso"
-    zerr
-}
+notice "Baking $SUITE $ARCH using $INST from $REPO"
 
-iso_url=${1}
-iso_name=${iso_url##*/}
-iso_sha1=`curl -s $iso_url.sha1sum`
-iso_sha1=${iso_sha1[(w)1]}
+# create the iso output directory
+out=$R/packer/iso/$SUITE-$ARCH-$INST
+mkdir -p $out
+rm -f $out/SHA256SUMS
+sha256sums=$REPO/$SUITE/main/installer-$ARCH/current/images/SHA256SUMS
 
-notice "Baking iso: $iso_name"
-
-mkdir -p $R/packer/iso
-iso_path=$R/packer/iso/${iso_name}
-[[ -r $R/packer/iso/$iso_name ]] || curl ${iso_url} -o $iso_path
-
-file_sha1=`sha1sum $iso_path`
-file_sha1=${file_sha1[(w)1]}
-
-if [[ "$file_sha1" = "$iso_sha1" ]]; then
-    act "SHA sums match correctly: $iso_sha1"
+# update and check SHA256 sums
+pushd $out
+curl -s $sha256sums -O
+orig_shasum=`awk '
+/ .\/'"$INST"'\/mini.iso$/ {print $1}
+' SHA256SUMS`
+orig_url=$REPO/$SUITE/main/installer-$ARCH/current/images/$INST/mini.iso
+act "Downloading mini.iso with SHA256 sum $orig_shasum"
+act "$orig_url"
+curl -s $orig_url -O
+local_shasum=`sha256sum mini.iso`
+local_shasum=${local_shasum[(w)1]}
+if [[ "$orig_shasum" = "$local_shasum" ]]; then
+    notice "Succesfully downloaded, SHA256 sums match"
 else
-    error "SHA sum comparison failed, corrupted iso: $iso_path"
+    error "SHA256 sums mismatch, operation aborted"
     zerr
 fi
+popd
 
-vm_output=${iso_name%%.iso*}
-strtok $vm_output "-"
-# filename format: devuan-jessie-netboot-i386-alpha2
-suite=${tok[2]}
-installer=${tok[3]}
-arch=${tok[4]}
-version=${tok[5]}
 
-act "suite: $suite"
-act "installer: $installer"
-act "arch: $arch"
-act "version: $version"
+iso_path=$out/mini.iso
 
+vm_output=devuan-$SUITE-$ARCH-$VERSION
 
 # preseed
-seed=$R/seeds/$installer-auto
+seed=$R/seeds/$INST-auto
 notice "Injecting preseed: $seed"
 [[ -r $seed ]] || {
     error "seed not found: $seed"
@@ -167,7 +166,7 @@ keep_failed_build=false
 
 
 # destination dir
-dest=$R/packer/$suite-$version/$arch-installer-wip
+dest=$R/packer/$SUITE-$VERSION/$ARCH-installer-wip
 [[ -r $dest ]] && {
     act "clean destination: $dest"
     rm -rf $dest }
@@ -196,7 +195,7 @@ case $target in
             "ssh_password": "devuan",
             "ssh_port": 22,
             "ssh_wait_timeout": "90m",
-            "vm_name": "$iso_name",
+            "vm_name": "devuan-$SUITE-$ARCH-$VERSION",
             "net_device": "virtio-net",
             "disk_interface": "virtio",
 
@@ -233,12 +232,11 @@ esac
 
 packer build $ztmpfile && { # shrink to fit
     [[ "$target" =~ "qemu" ]] && {
-        mkdir -p $R/pub/qemu-$arch
         notice "Shrinking QEMU cow to fit"
         qemu_convert_args=()
         # [[ $QUIET = 1 ]] || qemu_convert_args=(-p)
-        qemu-img convert -c -p -O qcow2 $dest/$iso_name.qcow2 \
-            $R/pub/qemu-$arch/devuan-$suite-$installer-$arch-$version.qcow2
+        qemu-img convert -c -p -O qcow2 $dest/devuan-$SUITE-$ARCH-$VERSION.qcow2 \
+            $R/pub/devuan-$SUITE-$ARCH-$VERSION.qcow2
     }
 }
 
