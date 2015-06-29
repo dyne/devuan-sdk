@@ -31,13 +31,13 @@ source sdk
 # arguments passed via env vars
 REPO=${REPO:-http://packages.devuan.org/devuan/dists}
 SUITE=${SUITE:-jessie}
-ARCH=${ARCH:-i386}
+ARCH=${ARCH:-i386} # or amd64
 INST=${INST:-netboot}
 VERSION=${VERSION:-alpha2}
 
 # check requirements
 
-required=(xorriso packer rsync sudo)
+required=(xorriso packer rsync sudo vagrant)
 for i in $required; do
     isfound $i || {
     error "$i is required, but is not found on this system"
@@ -61,6 +61,8 @@ mkdir -p $out
 rm -f $out/SHA256SUMS
 sha256sums=$REPO/$SUITE/main/installer-$ARCH/current/images/SHA256SUMS
 
+func "$sha256sums"
+
 # update and check SHA256 sums
 pushd $out
 curl -s $sha256sums -O
@@ -76,7 +78,9 @@ local_shasum=${local_shasum[(w)1]}
 if [[ "$orig_shasum" = "$local_shasum" ]]; then
     notice "Succesfully downloaded, SHA256 sums match"
 else
-    error "SHA256 sums mismatch, operation aborted"
+    warning "SHA256 sums mismatch, operation aborted"
+    func "local: $local_shasum"
+    func "orig:  $orig_shasum"
     zerr
 fi
 popd
@@ -151,8 +155,8 @@ sha1_ready=${sha1_ready[(w)1]}
 
 [[ $DEBUG = 1 ]] || sudo rm -rf $newiso
 
-# QEMU is the only default for now
-target=qemu
+# default target is virtuabox-iso
+target=vbox
 
 # debugging
 packer_headless=true
@@ -171,13 +175,27 @@ dest=$R/packer/$SUITE-$VERSION/$ARCH-installer-wip
     act "clean destination: $dest"
     rm -rf $dest }
 
+# calculate the guest_os type to speed up vbox
+case $ARCH in
+    x86|i386) guest_os_type=Debian ;;
+    x86_64|amd64) guest_os_type=Debian_64 ;;
+    *) guest_os_type=Linux ;;
+esac
+
 ztmp
-case $target in
-    qemu*)
-        cat <<EOF >> $ztmpfile
+packer_target=$ztmpfile
+cat <<EOF >> $packer_target
 {
     "builders":
     [
+EOF
+
+###########
+## BUILDERS
+
+case $target in
+    qemu*)
+        cat <<EOF >> $packer_target
         {
             "type": "qemu",
             "iso_url": "file://$iso_ready",
@@ -190,7 +208,6 @@ case $target in
             "format": "qcow2",
             "headless": $packer_headless,
             "accelerator": "kvm",
-
             "ssh_username": "root",
             "ssh_password": "devuan",
             "ssh_port": 22,
@@ -198,9 +215,46 @@ case $target in
             "vm_name": "devuan-$SUITE-$ARCH-$VERSION",
             "net_device": "virtio-net",
             "disk_interface": "virtio",
-
             "boot_command": "<enter>"
         }
+EOF
+        ;;
+
+    vbox*)
+        cat <<EOF >> $packer_target
+        {
+            "type": "virtualbox-iso",
+            "iso_url": "file://$iso_ready",
+            "iso_checksum": "$sha1_ready",
+            "iso_checksum_type": "sha1",
+            "output_directory": "$dest",
+            "ssh_wait_timeout": "30s",
+            "shutdown_command": "init 0",
+            "guest_os_type": "$guest_os_type",
+            "guest_additions_mode": "disable",
+            "disk_size": 8192,
+            "headless": false,
+            "ssh_username": "root",
+            "ssh_password": "devuan",
+            "ssh_port": 22,
+            "ssh_wait_timeout": "90m",
+            "vm_name": "devuan-$SUITE-$ARCH-$VERSION",
+            "boot_command": "<enter>"
+        }
+EOF
+        ;;
+
+    *)
+        error "packer target unsupported: $target"
+        return 1
+        ;;
+esac
+
+
+###############
+## PROVISIONERS
+
+cat <<EOF >> $packer_target
     ]
 ,
     "provisioners":
@@ -220,24 +274,62 @@ case $target in
             "inline": "sh /tmp/devuan-base"
         }
     ]
+,
+EOF
+
+
+##################
+## POST PROCESSORS
+ztmp
+vagrant_template=$ztmpfile
+cat <<EOF >> $vagrant_template
+Vagrant.configure(2) do |config|
+  config.ssh.username = "root"
+  config.ssh.password = "devuan"
+  config.vm.guest = :debian
+end
+EOF
+cat <<EOF >> $packer_target
+    "post-processors":
+    [
+        {
+            "type": "vagrant",
+            "only": ["virtualbox-iso"],
+            "output": "$R/pub/devuan-$SUITE-$ARCH-$VERSION.box",
+            "vagrantfile_template": "$vagrant_template"
+        }
+    ]
 }
 EOF
-        ;;
-    
-    *)
-        error "packer target unsupported: $target"
-        return 1
-        ;;
-esac
 
-packer build $ztmpfile && { # shrink to fit
+# can add to post-processors
+# "keep_input_artifact": true
+# to keep original vmdk and ovf files
+
+packer build $packer_target && {
+    # if succesfull, shrink and convert as needed
+
     [[ "$target" =~ "qemu" ]] && {
         notice "Shrinking QEMU cow to fit"
         qemu_convert_args=()
         # [[ $QUIET = 1 ]] || qemu_convert_args=(-p)
         qemu-img convert -c -p -O qcow2 $dest/devuan-$SUITE-$ARCH-$VERSION.qcow2 \
-            $R/pub/devuan-$SUITE-$ARCH-$VERSION.qcow2
+                 $R/pub/devuan-$SUITE-$ARCH-$VERSION.qcow2
     }
+
+    [[ "$target" =~ "vbox" ]] && {
+        notice "Adding box to local vagrant"
+        vagrant box add devuan-$SUITE-$ARCH-$VERSION $R/pub/devuan-$SUITE-$ARCH-$VERSION.box
+        notice "Mutating the VBOX into QCOW2"
+        vagrant mutate devuan-$SUITE-$ARCH-$VERSION libvirt && {
+            act "Compressing the mutated QCOW2 into pub"
+            qemu-img convert -c -p -O qcow2 \
+                     ~/.vagrant.d/boxes/devuan-$SUITE-$ARCH-$VERSION/0/libvirt/box.img \
+                     $R/pub/devuan-$SUITE-$ARCH-$VERSION.qcow2
+            [[ $? = 0 ]] && notice "VBOX succesfully exported to QCOW2"
+        }
+    }
+
 }
 
 # cleanup
