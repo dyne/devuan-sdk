@@ -5,7 +5,6 @@ echo "Finishing the Devuan VM"
 # here set the suit and components to avoid dialogs
 echo "devuan-baseconf suite string jessie"      | debconf-set-selections
 echo "devuan-baseconf components string main"   | debconf-set-selections
-echo "devuan-baseconf note seen true"           | debconf-set-selections
 echo "debconf priority select critical"         | debconf-set-selections
 
 apt-get remove --purge -y systemd
@@ -20,6 +19,9 @@ DEBIAN_FRONTEND='noninteractive' apt-get -o Acquire::Check-Valid-Until=false upg
 apt-get -o Acquire::Check-Valid-Until=false install -y zsh
 
 apt-get -o Acquire::Check-Valid-Until=false install -y guile-2.0
+
+# sudo is needed for vagrant
+apt-get -o Acquire::Check-Valid-Until=false install -y sudo
 
 DEBIAN_FRONTEND='noninteractive' apt-get autoremove -y
 
