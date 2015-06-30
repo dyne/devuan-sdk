@@ -139,7 +139,7 @@ done
 # md5sum `find -follow -type f` > md5sum.txt
 
 act "Toasting the new iso"
-iso_ready=$R/packer/packer_cache/$vm_output-ready.iso
+iso_ready=$R/packer/packer_cache/$vm_output-$INST-auto.iso
 xorriso -as mkisofs -output $iso_ready \
     -iso-level 3 -full-iso9660-filenames -r \
     -J -no-emul-boot -boot-load-size 4 \
@@ -233,7 +233,7 @@ EOF
             "guest_os_type": "$guest_os_type",
             "guest_additions_mode": "disable",
             "disk_size": 8192,
-            "headless": false,
+            "headless": $packer_headless,
             "ssh_username": "root",
             "ssh_password": "devuan",
             "ssh_port": 22,
@@ -318,9 +318,17 @@ packer build $packer_target && {
     }
 
     [[ "$target" =~ "vbox" ]] && {
+        vagrant box list | grep "^devuan-$SUITE-$ARCH-$VERSION" 1>/dev/null 2>/dev/null
+        [[ $? = 0 ]] && {
+            act "Removing old box: devuan-$SUITE-$ARCH-$VERSION"
+            vagrant box remove devuan-$SUITE-$ARCH-$VERSION --force }
         notice "Adding box to local vagrant"
         vagrant box add devuan-$SUITE-$ARCH-$VERSION $R/pub/devuan-$SUITE-$ARCH-$VERSION.box
         notice "Mutating the VBOX into QCOW2"
+        vagrant list-commands | grep '^mutate' 1>/dev/null 2>/dev/null
+        [[ $? = 0 ]] || { act "installing vagrant's plugin 'mutate'"
+                          sudo apt-get -y install qemu-utils libvirt-dev
+                          vagrant plugin install vagrant-mutate }
         vagrant mutate devuan-$SUITE-$ARCH-$VERSION libvirt && {
             act "Compressing the mutated QCOW2 into pub"
             qemu-img convert -c -p -O qcow2 \
@@ -334,6 +342,8 @@ packer build $packer_target && {
 
 # cleanup
 [[ $DEBUG = 1 ]] || {
+    act "cleaning up"
     rm -rf $dest
-    rm $iso_ready
+    act "publishing $INST-auto installer ISO"
+    mv $iso_ready $R/pub/
 }
