@@ -28,12 +28,81 @@
 
 source sdk
 
+TRAPZERR() { }
+
 # arguments passed via env vars
 REPO=${REPO:-http://packages.devuan.org/devuan/dists}
 SUITE=${SUITE:-jessie}
 ARCH=${ARCH:-i386} # or amd64
 INST=${INST:-netboot}
 VERSION=${VERSION:-alpha2}
+
+# default target is virtuabox-iso
+target=vbox
+
+func "debugging"
+packer_headless=true
+# this works only on virtualbox-iso
+keep_failed_build=false
+[[ $DEBUG = 1 ]] && {
+    packer_headless=false
+    keep_failed_build=true
+    export PACKER_LOG=1
+}
+
+
+func "destination dir"
+dest=$R/packer/$SUITE-$VERSION/$ARCH-installer-wip
+[[ -r $dest ]] && {
+    act "clean destination: $dest"
+    rm -rf $dest }
+
+func "calculate the guest_os type to speed up vbox"
+case $ARCH in
+    x86|i386) guest_os_type=Debian ;;
+    x86_64|amd64) guest_os_type=Debian_64 ;;
+    *) guest_os_type=Linux ;;
+esac
+
+
+vm_output=devuan-$SUITE-$ARCH-$VERSION
+
+
+
+post-packer() {
+[[ "$target" =~ "qemu" ]] && {
+    notice "Shrinking QEMU cow to fit"
+    qemu_convert_args=()
+    # [[ $QUIET = 1 ]] || qemu_convert_args=(-p)
+    qemu-img convert -c -p -O qcow2 $dest/devuan-$SUITE-$ARCH-$VERSION.qcow2 \
+             $R/pub/devuan-$SUITE-$ARCH-$VERSION.qcow2
+}
+
+[[ "$target" =~ "vbox" ]] && {
+    func "toasting vbox"
+    vagrant box list | grep "^devuan-$SUITE-$ARCH-$VERSION" 1>/dev/null 2>/dev/null
+    [[ $? = 0 ]] && {
+        act "Removing old box: devuan-$SUITE-$ARCH-$VERSION"
+        vagrant box remove devuan-$SUITE-$ARCH-$VERSION --provider virtualbox --force }
+    notice "Adding box to local vagrant"
+    vagrant box add devuan-$SUITE-$ARCH-$VERSION $R/pub/devuan-$SUITE-$ARCH-$VERSION.box
+    notice "Mutating the VBOX into QCOW2"
+    vagrant list-commands | grep '^mutate' 1>/dev/null 2>/dev/null
+    [[ $? = 0 ]] || { act "installing vagrant's plugin 'mutate'"
+                      sudo apt-get -y install qemu-utils libvirt-dev
+                      vagrant plugin install vagrant-mutate }
+    vagrant mutate devuan-$SUITE-$ARCH-$VERSION --input-provider virtualbox libvirt && {
+        act "Compressing the mutated QCOW2 into pub"
+        qemu-img convert -c -p -O qcow2 \
+                 ~/.vagrant.d/boxes/devuan-$SUITE-$ARCH-$VERSION/0/libvirt/box.img \
+                 $R/pub/devuan-$SUITE-$ARCH-$VERSION.qcow2
+        [[ $? = 0 ]] && notice "VBOX succesfully exported to QCOW2"
+    }
+}
+}
+
+[[ "$1" = "post" ]] && { post-packer; return $? }
+###################
 
 # check requirements
 
@@ -87,8 +156,6 @@ popd
 
 
 iso_path=$out/mini.iso
-
-vm_output=devuan-$SUITE-$ARCH-$VERSION
 
 # preseed
 seed=$R/seeds/$INST-auto
@@ -154,33 +221,6 @@ sha1_ready=${sha1_ready[(w)1]}
     zerr }
 
 [[ $DEBUG = 1 ]] || sudo rm -rf $newiso
-
-# default target is virtuabox-iso
-target=vbox
-
-# debugging
-packer_headless=true
-# this works only on virtualbox-iso
-keep_failed_build=false
-[[ $DEBUG = 1 ]] && {
-    packer_headless=false
-    keep_failed_build=true
-    export PACKER_LOG=1
-}
-
-
-# destination dir
-dest=$R/packer/$SUITE-$VERSION/$ARCH-installer-wip
-[[ -r $dest ]] && {
-    act "clean destination: $dest"
-    rm -rf $dest }
-
-# calculate the guest_os type to speed up vbox
-case $ARCH in
-    x86|i386) guest_os_type=Debian ;;
-    x86_64|amd64) guest_os_type=Debian_64 ;;
-    *) guest_os_type=Linux ;;
-esac
 
 ztmp
 packer_target=$ztmpfile
@@ -309,36 +349,7 @@ EOF
 packer build $packer_target
 
 # if succesfull, shrink and convert as needed
-
-[[ "$target" =~ "qemu" ]] && {
-    notice "Shrinking QEMU cow to fit"
-    qemu_convert_args=()
-    # [[ $QUIET = 1 ]] || qemu_convert_args=(-p)
-    qemu-img convert -c -p -O qcow2 $dest/devuan-$SUITE-$ARCH-$VERSION.qcow2 \
-             $R/pub/devuan-$SUITE-$ARCH-$VERSION.qcow2
-}
-
-[[ "$target" =~ "vbox" ]] && {
-    vagrant box list | grep "^devuan-$SUITE-$ARCH-$VERSION" 1>/dev/null 2>/dev/null
-    [[ $? = 0 ]] && {
-        act "Removing old box: devuan-$SUITE-$ARCH-$VERSION"
-        vagrant box remove devuan-$SUITE-$ARCH-$VERSION --force }
-    notice "Adding box to local vagrant"
-    vagrant box add devuan-$SUITE-$ARCH-$VERSION $R/pub/devuan-$SUITE-$ARCH-$VERSION.box
-    notice "Mutating the VBOX into QCOW2"
-    vagrant list-commands | grep '^mutate' 1>/dev/null 2>/dev/null
-    [[ $? = 0 ]] || { act "installing vagrant's plugin 'mutate'"
-                      sudo apt-get -y install qemu-utils libvirt-dev
-                      vagrant plugin install vagrant-mutate }
-    vagrant mutate devuan-$SUITE-$ARCH-$VERSION libvirt && {
-        act "Compressing the mutated QCOW2 into pub"
-        qemu-img convert -c -p -O qcow2 \
-                 ~/.vagrant.d/boxes/devuan-$SUITE-$ARCH-$VERSION/0/libvirt/box.img \
-                 $R/pub/devuan-$SUITE-$ARCH-$VERSION.qcow2
-        [[ $? = 0 ]] && notice "VBOX succesfully exported to QCOW2"
-    }
-}
-
+post-packer
 
 # cleanup
 [[ $DEBUG = 1 ]] || {
