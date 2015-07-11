@@ -4,6 +4,15 @@
 
 ### version 0.4
 
+#### DISCLAIMER
+
+This SDK version is not up to date with the Continuous Integration
+workflow Devuan has in place since a few months now. Updates to this
+SDK will follow, meanwhile be aware that this code will not produce
+iso images valid for release, since these are done via CI now.
+
+### Introduction
+
 This set of scripts aid package maintainers to import sources from
 Debian, verify signatures and stage them to be imported inside
 Devuan's git repository. 
