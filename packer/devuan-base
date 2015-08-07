@@ -25,6 +25,9 @@ apt-get -o Acquire::Check-Valid-Until=false install -y guile-2.0
 # sudo is needed for vagrant
 apt-get -o Acquire::Check-Valid-Until=false install -y sudo
 
+# ebtables allows for layer-2 firewalling on first boot
+apt-get -o Acquire::Check-Valid-Until=false install -y ebtables
+
 DEBIAN_FRONTEND='noninteractive' apt-get autoremove -y
 
 apt-get clean
