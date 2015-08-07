@@ -11,6 +11,8 @@ apt-get remove --purge -y systemd
 apt-get remove --purge -y exim4 exim4-base exim4-config
 apt-get remove --purge -y xauth
 apt-get remove --purge -y reportbug
+apt-get remove --purge -y rpcbind
+apt-get remove --purge -y dbus
 
 apt-get -o Acquire::Check-Valid-Until=false update -y
 
