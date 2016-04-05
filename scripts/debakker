@@ -36,6 +36,7 @@ ARCH=${ARCH:-i386} # or amd64
 INST=${INST:-netboot}
 VERSION=${VERSION:-alpha4}
 
+
 orig_url=$REPO/$SUITE/main/installer-$ARCH/current/images/$INST/mini.iso
 
 # if arg has url
@@ -146,7 +147,7 @@ orig_shasum=`awk '
 / .\/'"$INST"'\/mini.iso$/ {print $1}
 ' SHA256SUMS`
 orig_url=$REPO/$SUITE/main/installer-$ARCH/current/images/$INST/mini.iso
-act "Downloading mini.iso with SHA256 sum $orig_shasum"
+act "Downloading $INST mini.iso with SHA256 sum $orig_shasum"
 act "$orig_url"
 curl -s $orig_url -O
 local_shasum=`sha256sum mini.iso`
@@ -161,8 +162,11 @@ else
 fi
 popd
 
-
+# Save the mini.iso as the final iso installer
 iso_path=$out/mini.iso
+cp $iso_path $R/pub/devuan-${SUITE}-${ARCH}-${VERSION}-netboot.iso
+
+
 
 # preseed
 seed=$R/seeds/$INST-auto

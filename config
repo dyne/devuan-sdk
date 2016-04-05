@@ -6,12 +6,13 @@
 # syntax: variable=value
 # (no spaces before and after the equal sign)
 
-mirror=http://packages.devuan.org/merged
+mirror=https://packages.devuan.org/merged
 release=jessie
 section=main
+version=alpha4
 
 
 # TODO: make a iso skeleton of our own
-iso_mirror=http://mirror.debianfork.org
+iso_mirror=https://vagrant.devuan.org
 # amd64/iso-cd/debian-jessie-DI-rc2-amd64-netinst.iso
 # amd64/iso-cd/debian-jessie-DI-rc2-i386-netinst.iso

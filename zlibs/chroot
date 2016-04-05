@@ -38,14 +38,16 @@ auto-chroot chroot-auto() {
 #    serve-local-repo on
 }
 
-chroot arch() {
+function chroot arch() {
     fn arch
 
     case $1 in
         i386|amd64) chroot_arch=$1 ;;
         *)
-            warn "Chroot architecture not supported $1"
-            warn "Only architectures supported: i386 or amd64"
+            [[ "$1" = "" ]] || {
+                warn "Chroot architecture not supported $1"
+                warn "Only architectures supported: i386 or amd64"
+            }
             act -n "Existing chroots: "
             schroot -l 2>/dev/null | awk -F: '
 /devuan/ {
@@ -53,7 +55,7 @@ chroot arch() {
   printf $2 " "
 }'
             print >&2
-            return 1
+            return 0
             ;;
     esac
 
@@ -72,15 +74,15 @@ chroot-config() {
 
     [[ -r /etc/schroot/chroot.d/devuan-$chroot_arch ]] && {
         warn "Chroot configuration already existing: /etc/schroot/chroot.d/devuan-$chroot_arch"
-        warn "Delete it and eventually erase chroot/$chroot_arch to rewrite"
-        return 1
+        warn "To delete it, also erase $R/chroot/$chroot_arch"
+        return 0
     }
 
     sudo mkdir -p $R/chroot/$chroot_arch
 
-    tmp=`mktemp`
-    chmod a+r $tmp
-    cat <<EOF >> $tmp
+    ztmp
+    chmod a+r $ztmpfile
+    cat <<EOF >> $ztmpfile
 [devuan-$chroot_arch]
 type=directory
 directory=$R/chroot/$chroot_arch
@@ -91,10 +93,8 @@ aliases=${release}-${chroot_arch}
 EOF
 
     sudo \
-        cp $tmp /etc/schroot/chroot.d/devuan-$chroot_arch
+        cp $ztmpfile /etc/schroot/chroot.d/devuan-$chroot_arch
     res=$?
-
-    rm $tmp
 
     notice "Devuan schroot configuration created for arch $chroot_arch"
     func "found in: /etc/schroot/chroot.d/devuan-$chroot_arch"
@@ -111,15 +111,20 @@ chroot-create() {
         return 0
     }
 
-    notice "Build and install Devuan debootstrap on host"
-    .build-bootstrap debootstrap
-    sudo dpkg -i $R/bootstrap/${src_name}_${src_ver}_all.deb
+    # not anymore necessary since now Devuan exists and we are in it
+    # so we can use the current deboostrap. Still useful for anyone
+    # willing to test modifications on debootstrap.
+    #
+    # notice "Build and install Devuan debootstrap on host"
+    # .build-bootstrap debootstrap
+    # sudo dpkg -i $R/bootstrap/${src_name}_${src_ver}_all.deb
+    #
 
     notice "First stage debootstrap"
 
     # chroot configuration
-    chroot_include=bzip2,less,dialog,sysvinit,debian-keyring,apt-utils,fakeroot,zsh
-    chroot_exclude=systemd-sysv
+    chroot_include=bzip2,less,dialog,sysvinit,debian-keyring,devuan-keyring,apt-utils,fakeroot,zsh
+    chroot_exclude=libsystemd0,systemd,systemd-sysv
     chroot_variant=buildd
     chroot_comp=main
 
@@ -138,32 +143,32 @@ chroot-create() {
     schroot -c devuan-$chroot_arch -u root \
         -d /debootstrap -- ./debootstrap --second-stage
 
-    notice "Build and install Devuan baseconf in chroot"
-    .build-bootstrap devuan-baseconf
-    sudo \
-        cp $R/bootstrap/${src_name}_${src_ver}_all.deb \
-        $R/chroot/$chroot_arch/root
-    chdo \
-        dpkg -i /root/${src_name}_${src_ver}_all.deb
+    # notice "Build and install Devuan baseconf in chroot"
+    # .build-bootstrap devuan-baseconf
+    # sudo \
+    #     cp $R/bootstrap/${src_name}_${src_ver}_all.deb \
+    #     $R/chroot/$chroot_arch/root
+    # chdo \
+    #     dpkg -i /root/${src_name}_${src_ver}_all.deb
 
-    notice "Build and install Devuan keyring in chroot"
-    .build-bootstrap devuan-keyring
-    sudo \
-        cp $R/bootstrap/${src_name}_${src_ver}_all.deb \
-        $R/chroot/$chroot_arch/root
-    chdo \
-        dpkg -i /root/${src_name}_${src_ver}_all.deb
+    # notice "Build and install Devuan keyring in chroot"
+    # .build-bootstrap devuan-keyring
+    # sudo \
+    #     cp $R/bootstrap/${src_name}_${src_ver}_all.deb \
+    #     $R/chroot/$chroot_arch/root
+    # chdo \
+    #     dpkg -i /root/${src_name}_${src_ver}_all.deb
 
     notice "Updating package lists in chroot"
     chdo \
         apt-get update
 
-    notice "Installing build tools in chroot"
-    chdo \
-        apt-get install -y zsh vim-nox \
-        xorriso cpio xz-utils isolinux \
-        dpkg-dev gcc g++ autoconf automake libtool \
-        fakeroot
+    # notice "Installing build tools in chroot"
+    # chdo \
+    #     apt-get install -y zsh vim-nox \
+    #     xorriso cpio xz-utils isolinux \
+    #     dpkg-dev gcc g++ autoconf automake libtool \
+    #     fakeroot
 
     notice "Chroot succesfully created: $chroot_arch"
 }

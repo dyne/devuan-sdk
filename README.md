@@ -15,7 +15,7 @@ iso images valid for release, since these are done via CI now.
 
 This set of scripts aid package maintainers to import sources from
 Debian, verify signatures and stage them to be imported inside
-Devuan's git repository. 
+Devuan's git repository.
 
 The Devuan SDK is a fresh take to old tasks :^) acting as a sort of
 interactive shell extension. All the instructions below should be
@@ -32,8 +32,12 @@ If you try this fast and loose use a disposable system ;^)
 This SDK is designed to be used interactively from a terminal as well
 from shell scripts.
 
-Using Debian or Ubuntu, install: `sudo` `zsh` `gnupg2` `schroot`
-`debootstrap` `debhelper` `makedev` `curl` `rsync` `dpkg-dev`
+Using Debian or Ubuntu, install:
+
+```
+sudo zsh gnupg2 schroot debootstrap debhelper makedev curl rsync dpkg-dev
+```
+
 
 The last one it may be called `dpkg` or `dpkg-devtools` on other
 systems like Arch and Parabola.
@@ -98,18 +102,7 @@ Consider a single SDK can create more than one chroot for multiple
 architectures and they keep existing between builds.
 Switching is done via `arch`.
 
-Now proceed starting the build of all our source packages:
-
-```
-build all
-```
-
-Also this command will take long and will put your computer to work.
-If the sourcecode and the package are good, it will end up with
-success and the packages will be found in the `builds/` subdirectory
-inside the sdk.
-
-Now the last step: toast the iso with all the built packages inside.
+Now the next step: toast the iso with all the built packages inside.
 First choose what kind of seed configuration is wanted, at the time of
 writing the choices are `netinst` or `xfce` which are both installers
 and not live CDs.
@@ -279,6 +272,17 @@ where it failed using:
 build-retry
 ```
 
+To build all your source packages:
+
+```
+build all
+```
+
+Also this command will take long and will put your computer to work.
+If the sourcecode and the package are good, it will end up with
+success and the packages will be found in the `builds/` subdirectory
+inside the sdk.
+
 # Toast the iso
 
 The installer ISO can be toasted into a ready to burn image with a
@@ -320,7 +324,7 @@ and mindful atmosphere of its wonderful premises.
 Devuan SDK is Copyright (C) 2015 by the Dyne.org Foundation
 
 Devuan SDK is designed, written and maintained by Denis Roio <jaromil@dyne.org>
- 
+
 This source code is free software; you can redistribute it and/or
 modify it under the terms of the GNU Public License as published by
 the Free Software Foundation; either version 3 of the License, or (at
@@ -334,4 +338,3 @@ the GNU Public License for more details.
 You should have received a copy of the GNU Public License along with
 this source code; if not, write to: Free Software Foundation, Inc.,
 675 Mass Ave, Cambridge, MA 02139, USA.
-

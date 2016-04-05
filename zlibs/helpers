@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 
 # get the name of the package from a filename
-file-to-name() { 
+file-to-name() {
     sysread in
     print ${in[(ws:_:)1]}
 }
@@ -24,5 +24,40 @@ tarcmd() {
         print "Unknown tar archive: $1"
         return 1
     fi
+    return 0
+}
+
+
+deb-download() {
+    fn deb-download $*
+    deb="$1"
+    req=(deb tmp)
+    ckreq || return 1
+
+    bckfile=`find $S/debs -name "${deb}_*.deb"`
+    if [[ "$bckfile" = "" ]]; then
+        apt-get -q download $deb
+        [[ $? = 0 ]] || {
+            error "error downloading $deb"
+            return 1 }
+
+        debfile=`find . -name "${deb}_*.deb"`
+
+        freq=($debfile)
+        ckreq || return 1
+
+        act "backupping $debfile"
+        mkdir -p $S/debs
+        cp $debfile $S/debs/
+    else
+        debfile=$bckfile
+    fi
+
+    act "extracting $debfile"
+    dpkg -x $debfile .
+    [[ $? = 0 ]] || {
+        error "error extracting $tmp/$debfile"
+        return 1 }
+
     return 0
 }

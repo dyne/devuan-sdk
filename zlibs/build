@@ -149,10 +149,9 @@ build-check() {
 
 
 build-deps() {
-    fn build-deps
+    fn build-deps $*
     req=(src_name chroot_arch)
-    freq=($R/stage/$src_name/debian/control
-        $R/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver})
+    freq=($R/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver})
     reqck || return $?
 
     notice "Installing dependencies for package $src_name in $chroot_arch"
@@ -191,9 +190,10 @@ build-deps() {
 }
 
 build-clean() {
-    fn build-clean
+    fn build-clean $*
+    what=${1:-'sources'}
     req=(chroot_arch src_name src_ver orig_ver)
-    freq=($R/stage/$src_name/debian/control
+    freq=($R/$what/${src_name}-${src_ver}/debian/control
         $R/chroot/$chroot_arch/etc/passwd)
     reqck || return $?
 
@@ -208,9 +208,10 @@ build-clean() {
 }
 
 build-sync() {
-    fn build-sync
+    fn build-sync $*
+    where=${1:-'sources'}
     req=(chroot_arch src_name src_ver orig_ver)
-    freq=($R/stage/$src_name/debian/control
+    freq=($R/$where/${src_name}-${src_ver}/debian/control
         $R/chroot/$chroot_arch/etc/passwd)
     reqck || return $?
 
@@ -223,7 +224,7 @@ build-sync() {
 
     sudo \
         rsync -a --exclude='.git/' \
-        $R/stage/$src_name/* \
+        $R/$where/$src_name-$orig_ver/* \
         $R/chroot/$chroot_arch/usr/src/${src_name}-${orig_ver}
 
 }

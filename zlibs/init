@@ -2,9 +2,9 @@
 
 # Devuan SDK - package import management
 
-# Copyright (C) 2015 Dyne.org Foundation
+# Copyright (C) 2015-2016 Dyne.org Foundation
 #
-# Devuan SDK is designed, written and maintained by Denis Roio <jaromil@dyne.org>
+# Devuan SDK is written and maintained by Denis Roio <jaromil@dyne.org>
 #
 # This source code is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Public License as published by
@@ -24,7 +24,7 @@ init() {
     fn init
 
     # initialization
-    init-repos && init-keyring
+    init-sources && init-keyring
 
     mkdir -p $R/sources
     mkdir -p $R/stage
@@ -34,6 +34,18 @@ init() {
     notice "Devuan SDK succesfully initialized"
     act "For usage information refer to the README."
     return $?
+}
+
+init-sources() {
+    fn init-sources
+    notice "Downloading bootstrap source packages"
+
+    pushd $R/sources
+    apt-get source debootstrap &&
+        apt-get source devuan-baseconf &&
+        apt-get source devuan-keyring &&
+        apt-get source debian-keyring
+    popd
 }
 
 init-repos() {

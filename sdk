@@ -2,9 +2,9 @@
 
 # Devuan SDK
 
-# Copyright (C) 2015 Dyne.org Foundation
+# Copyright (C) 2015-2016 Dyne.org Foundation
 #
-# Devuan SDK is designed, written and maintained by Denis Roio <jaromil@dyne.org>
+# Devuan SDK is written and maintained by Denis Roio <jaromil@dyne.org>
 #
 # This source code is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Public License as published by
@@ -38,7 +38,7 @@ source zlibs/zuper
 ## declare global variables
 
 # config variables
-vars+=(mirror release section)
+vars+=(mirror release section version)
 vars+=(chroot_include chroot_exclude chroot_variant chroot_comp)
 
 # global variables
@@ -101,4 +101,3 @@ else
     sdk_loaded=1
     export RPROMPT=Devuan
 fi
-
