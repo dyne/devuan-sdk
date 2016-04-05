@@ -1,4 +1,5 @@
 #!/usr/bin/env zsh
+## -*- origami-fold-style: triple-braces -*-
 #
 # Zuper - Zsh Ultimate Programmer's Extensions Refurbished
 #
@@ -32,6 +33,11 @@ arrs=(req freq)
 vars+=(zuper_version)
 zuper_version=0.2
 
+zmodload zsh/system
+zmodload zsh/net/tcp
+
+# {{{ Messaging
+
 # Messaging function with pretty coloring
 autoload colors
 colors
@@ -47,7 +53,7 @@ function _msg() {
     done
 
     local command="print -P"
-    local progname="$fg[magenta]${TOMBEXEC##*/}$reset_color"
+    local progname="$fg[magenta]${PROGRAM##*/}$reset_color"
     local message="$fg_bold[normal]$fg_no_bold[normal]$msg$reset_color"
     local -i returncode
 
@@ -128,6 +134,9 @@ function _print() {
     return 0
 }
 
+# }}} Messaging
+
+# {{{ Debugging
 
 fn() {
     fun="$@"
@@ -153,7 +162,7 @@ ckreq reqck() {
     err=0
     for v in $req; do
         [[ "${(P)v}" = "" ]] && {
-            warn "required setting is blank: $v"
+            warn "${fun[(ws: :)1]}(): required setting is blank: $v"
             err=1
         }
     done
@@ -236,6 +245,10 @@ endgame() {
 # unlike TRAPEXIT, the zshexit() hook is not called when functions exit.
 zshexit() { endgame EXIT; return $? }
 
+# }}} Debugging
+
+# {{{ Tempfiles
+
 ##########################
 # Temp file handling
 
@@ -262,6 +275,10 @@ _ztmp_destructor() {
 arrs+=(tmpfiles)
 destruens+=(_ztmp_destructor)
 
+# }}} Tempfiles
+
+# {{{ Strings
+
 # tokenizer, works only with one char length delimiters
 # saves everything in global array tok=()
 arrs+=(tok)
@@ -274,6 +291,7 @@ strtok() {
 
     tok=()
     f=0
+    c=0
     for c in {1..${#_string}}; do
         if [[ "${_string[(e)$c]}" == "$_delim" ]]; then
             # check if not empty
@@ -288,6 +306,116 @@ strtok() {
     [[ "$t" == "" ]] || tok+=($t)
 }
 
+# TODO: move in here some helpers
+
+# }}} Strings
+
+# {{{ Networking
+
+# This is only tested on GNU/Linux and makes use of sysfs
+
+# index of all network devices
+arrs+=(net_devices)
+
+# map of ipv4 assigned addresses: [dev addr]
+maps+=(net_ip4_addr)
+# map of ipv6 assigned addresses: [dev addr]
+maps+=(net_ip6_addr)
+
+# map of dhcp served ipv4
+maps+=(ip4dhcps)
+# map of dhcp served ipv6
+maps+=(ip6dhcps)
+
+# map of external ipv4 addresses
+maps+=(net_ip4_exit)
+# map of internal ipv6 addresses
+# maps+=(ip6exits)
+
+net.scan_devices() {
+    for i in `find /sys/devices/ -name net`; do
+        dev=`ls $i`
+
+        # skip the loopback device
+        [[ "$dev" = "lo" ]] && continue
+
+        net_devices+=($dev)
+    done
+
+    # return error if no device found
+    if [[ ${#net_devices} = 0 ]]; then return 1
+    else return 0; fi
+}
+
+net.scan_addresses() {
+    [[ ${#net_devices} = 0 ]] && {
+        error "No network device found."
+        func "Have you ran net.scan_devices() first?"
+        return 1
+    }
+
+    for dev in ${net_devices}; do
+        # check ipv4 connections
+        conn=`ip addr show $dev | awk '/inet / {print $2}'`
+        [[ "$conn" = "" ]] || {
+            net_ip4_addr+=($dev $conn) }
+        # check ipv6 connections
+        conn=`ip addr show $dev | awk '/inet6/ {print $2}'`
+        [[ "$conn" = "" ]] || {
+            net_ip6_addr+=($dev $conn) }
+    done
+
+    # list ipv4
+    notice "${#net_ip4_addr} ipv4 connected devices found"
+    for c in ${(k)net_ip4_addr}; do
+        act " $c ${net_ip4_addr[$c]}"
+    done
+
+    # list ipv6
+    notice "${#net_ip6_addr} ipv6 connected devices found"
+    for c in ${(k)net_ip6_addr}; do
+        act " $c ${net_ip6_addr[$c]}"
+    done
+    # find out network addresses
+
+    return 0
+}
+
+net.scan_exits() {
+    # just ipv4 for now, also we use curl to drive the call over the
+    # specific interface, but if that wouldn't matter then rest.get is
+    # better to avoid this dependency
+
+    for dev in ${(k)net_ip4_addr}; do
+        addr=`curl --silent --interface $dev https://api.ipify.org`
+        if [[ "$?" != "0" ]]; then
+            error "curl returns $?: $addr"
+        else
+            [[ "$addr" = "" ]] || {
+                notice "$dev external ip: $addr"
+                net_ip4_exit+=($dev $addr)
+            }
+        fi
+    done
+
+    for dev in ${(k)net_ip6_addr}; do
+        addr=`curl --silent --ipv6 --interface $dev https://api.ipify.org`
+        if [[ $? != 0 ]]; then
+            error "curl returns $?: $addr"
+        else
+            [[ "$addr" = "" ]] || {
+                notice "$dev external ip: $addr"
+                net_ip4_exit+=($dev $addr)
+            }
+        fi
+    done
+
+}
+
+# }}} Networking
+
+# {{{ Key/Value filesave
+
 # optional: define zkv=1 on source
 
 [[ "$zkv" = "" ]] || {
@@ -295,7 +423,6 @@ strtok() {
     ##########################
     # Key/Value file storage using ZSh associative maps
 
-    zmodload zsh/system
 
     # load a map from a file
     # map must be already instantiated with typeset -A by called
@@ -357,47 +484,45 @@ EOF
 
 }
 
-# optional: define restful=1 on source
+# }}} Key/Value filesave
 
-[[ "$restful" = "" ]] || {
+# {{{ Get/Set REST API
 
-    ########
-    # Restful API client
-    # there is a clear zsh optimization here in get/set kv
-    # using zsh/tcp instead of spawning curl
-    # and perhaps querying with one call using ?recursive
+########
+# Restful API client
+# there is a clear zsh optimization here in get/set kv
+# using zsh/tcp instead of spawning curl
+# and perhaps querying with one call using ?recursive
 
-    zmodload zsh/net/tcp
+vars+=(rest_reply_body rest_reply_header)
+maps+=(rest_header)
 
-    function restful.put() {
-        # $1 = hostname
-        # $2 = port
-        # $3 = path
-        # $4 = key
-        # $5 = value
+function rest.put() {
+    fn "rest.put $*"
 
-        fn "restful.put $*"
+    # $1 = hostname
+    # $2 = port
+    # $3 = path
+    # value from stdin |
 
-        # to check if the http service is running is up to the caller
+    # to check if the http service is running is up to the caller
 
-        _host=${1} # ip address
-        _port=${2}
-        _path=${3}
-        _k="$4" # key name
-        _v="$5" # value
+    _host=${1} # ip address
+    _port=${2}
+    _path=${3}
+    sysread _v
 
-        req=(_host _k _v)
-        ckreq || return $?
+    req=(_host)
+    ckreq || return $?
 
-        if ztcp $_host $_port; then
+    if ztcp $_host $_port; then
 
+        # TODO: work out various parsers, this one works with consul.io
 
-            # TODO: work out various parsers, this one works with consul.io
-
-            _fd=$REPLY
-            #    func "tcp open on fd $fd"
-            cat <<EOF >& $_fd
-PUT ${_path}${_k} HTTP/1.1
+        _fd=$REPLY
+        #    func "tcp open on fd $fd"
+        cat <<EOF >& $_fd
+PUT ${_path} HTTP/1.1
 User-Agent: Zuper/$zuper_version
 Host: ${_host}:${_port}
 Accept: */*
@@ -406,72 +531,99 @@ Content-Type: application/x-www-form-urlencoded
 
 EOF
 
-            print -n "$_v" >& $_fd
+        print -n "$_v" >& $_fd
 
-            sysread -i $_fd _res
+        sysread -i $_fd _res
 
-            # close connection
-            ztcp -c $_fd
+        # close connection
+        ztcp -c $_fd
 
-            [[ "$_res" =~ "true" ]] || {
-                warn "failed PUT on restful key/value"
-                warn "endpoint: ${_host}:${_port}${_path}"
-                warn "resource: $_k = $_v"
-                print - "$_res"
-                zerr
-                return 1
-            }
-
-        else
-            error "cannot connect to restful service: $_host:$_port"
-            zerr
-            return 1
-        fi
-
-        return 0
-
-    }
-
-    restful.get() {
-        fn "restful.get $*"
-
-        _host=${1}
-        _port=${2}
-        _path=${3}
-        _k=$4 # key name
-
-        req=(_host _k)
-        ckreq || return $?
-
-        _k=$1
-
-        ztcp $_host $_port || {
+        [[ "$_res" =~ "true" ]] || {
+            warn "failed PUT on restful key/value"
+            warn "host: ${_host}"
+            warn "port: ${_port}"
+            warn "path: ${_path}"
+            warn "value: $_v"
+            print - "$_res"
             zerr
             return 1
         }
 
-        _fd=$REPLY
+    else
+        error "cannot connect to restful service: $_host:$_port"
+        zerr
+        return 1
+    fi
 
-        # TODO: work out various parsers, this one works with consul.io
+    return 0
 
-        cat <<EOF >& $_fd
-GET ${_path}${_k} HTTP/1.1
+}
+
+function rest.get() {
+    fn "rest.get $*"
+
+    _host=${1}
+    _port=${2}
+    _path=${3}
+
+    req=(_host _port)
+    ckreq || return $?
+
+    ztcp $_host $_port || {
+        zerr
+        return 1
+    }
+
+    _fd=$REPLY
+
+    # TODO: work out various parsers, this one works with consul.io
+
+    cat <<EOF >& $_fd
+GET ${_path} HTTP/1.1
 User-Agent: Zuper/$zuper_version
 Host: $_host:$_port
 Accept: */*
 
 EOF
-        sysread -i $_fd -o 1 | awk -F: '
-/"Value":/ { gsub(/"|}]/,"",$7) ; print $7 }' | base64 -d
 
-        # close connection
-        ztcp -c $_fd
+    # read header response
+    rest_reply=`sysread -i $_fd -o 1`
 
-        return 0
+    for i in "${(f)rest_reply}"; do
+        print $i | hexdump -C
+        # first line is the response code
 
-    }
+        [[ "$i" -regex-match "\x0d\x0a$" ]] && {
+            func BLANK
+            break }
+
+        # # save other lines in map for fast retrieval
+        # _field=${i[(ws@:@)1]}
+        # func "$_field - header field parsed"
+        # rest_header[$_field]="${i[(ws@:@)2]}"
+
+        # c=$(( $c + 1 ))
+    done
+    # rest_reply_header="${(f)$(cat <&$_fd)}"
+
+    func "${#rest_reply_header} bytes response header stored in rest_reply_header"
+    # | awk -F: '
+    #/"Value":/ { gsub(/"|}]/,"",$7) ; print $7 }' | base64 -d
+
+    # TODO: read content-length and use it here
+
+    rest_reply_body="${(f)$(sysread -i $_fd -o 1)}"
+    func "${#rest_reply_body} bytes response body stored in rest_reply_body"
+
+    # close connection
+    ztcp -c $_fd
+
+    return 0
 
 }
+
+
+# }}} Get/Set REST API
 
 # {{{ Helpers
 [[ "$helpers" = "" ]] || {
@@ -545,7 +697,7 @@ EOF
     function helper.html-strip xml_strip html_strip() { sed 's/<[^>]\+>//g' }
 
     # changes stdin string special chars to be shown in html
-    function helper.excape-html escape_html() {
+    function helper.escape-html escape_html() {
         sed -e '
 s/\&/\&amp;/g
 s/>/\&gt;/g
@@ -554,8 +706,85 @@ s/"/\&quot;/g
 '
     }
 
-}
+    # escapes special chars in urls
+    function helper.decode-url decode_url urldecode() {
+        sed -e '
+s/%25/%/gi
+s/%20/ /gi
+s/%09/ /gi
+s/%21/!/gi
+s/%22/"/gi
+s/%23/#/gi
+s/%24/\$/gi
+s/%26/\&/gi
+s/%27/'\''/gi
+s/%28/(/gi
+s/%29/)/gi
+s/%2a/\*/gi
+s/%2b/+/gi
+s/%2c/,/gi
+s/%2d/-/gi
+s/%2e/\./gi
+s/%2f/\//gi
+s/%3a/:/gi
+s/%3b/;/gi
+s/%3d/=/gi
+s/%3e//gi
+s/%3f/?/gi
+s/%40/@/gi
+s/%5b/\[/gi
+s/%5c/\\/gi
+s/%5d/\]/gi
+s/%5e/\^/gi
+s/%5f/_/gi
+s/%60/`/gi
+s/%7b/{/gi
+s/%7c/|/gi
+s/%7d/}/gi
+s/%7e/~/gi
+s/%09/      /gi
+'
+    }
 
+    function helper.encode-url encode_url urlencode() {
+        sed -e '
+s/%/%25/g
+s/ /%20/g
+s/ /%09/g
+s/!/%21/g
+s/"/%22/g
+s/#/%23/g
+s/\$/%24/g
+s/\&/%26/g
+s/'\''/%27/g
+s/(/%28/g
+s/)/%29/g
+s/\*/%2a/g
+s/+/%2b/g
+s/,/%2c/g
+s/-/%2d/g
+s/\./%2e/g
+s/\//%2f/g
+s/:/%3a/g
+s/;/%3b/g
+s//%3e/g
+s/?/%3f/g
+s/@/%40/g
+s/\[/%5b/g
+s/\\/%5c/g
+s/\]/%5d/g
+s/\^/%5e/g
+s/_/%5f/g
+s/`/%60/g
+s/{/%7b/g
+s/|/%7c/g
+s/}/%7d/g
+s/~/%7e/g
+s/      /%09/g
+'
+    }
+
+}
 # }}} Helpers
 
 # {{{ Config
@@ -625,4 +854,4 @@ BEGIN { found=0 }
 
 }
 
-# }}}
+# }}} Config
