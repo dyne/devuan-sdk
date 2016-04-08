@@ -1,0 +1,34 @@
+## SDK public calls API
+
+# initialized the SDK for the first time
+# called only once from inside its directory
+function sdk-init() init
+
+# ----------------
+
+### CHROOT functions
+
+
+# Select the current chroot architecture. Argument is one of "armhf",
+# "amd64", "i386" etc.... omit for obtaining a list of available
+# architectures. Current architecture is shown in right-hand prompt.
+function sdk-chroot-arch()   arch $1
+
+# Build the currently selected chroot architecture. May overwrite
+# previous builds going across all debootstrap stages and installing
+# base packages. If the architecture is different from host, use
+# static qemu emulation.
+function sdk-chroot-build()  chroot-create
+
+
+# Enter the currently selected chroot using the default shell, or
+# execute any command following it as argument.
+function sdk-chroot-do()     chdo $*
+
+# Read stdin and write it over a file inside the chroot. May be
+# followed by a second argument '+x' in which case the file is made
+# executable.
+function sdk-chroot-write()  chowrite $2
+
+# Append stdin to a file inside the chroot.
+function sdk-chroot-append() chappend $1

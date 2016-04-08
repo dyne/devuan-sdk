@@ -81,6 +81,7 @@ source zlibs/build
 # source zlibs/mirror
 source zlibs/iso
 source zlibs/packer
+source zlibs/public
 
 # complete zuper initialization
 source zlibs/zuper.init

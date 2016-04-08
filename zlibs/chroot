@@ -20,22 +20,27 @@
 # this source code; if not, write to: Free Software Foundation, Inc.,
 # 675 Mass Ave, Cambridge, MA 02139, USA.
 
+vars+=(arch_include chroot_arch chroot_include chroot_shell)
+vars+=(chroot_qemu chroot_device)
+
 # default shell for the chroot
-chroot_shell=/bin/dash
+chroot_shell=/bin/bash
+# tells if chroot is cross-compiling and needs qemu-static
+chroot_qemu=""
 
 # destructor for all open chroot sessions
 chroot-destructor() {
     for _c in `schroot --list --all-sessions`; do
-        schroot --end-session -c $_c
+        sudo schroot --end-session -c $_c
     done
 }
 destruens+=(chroot-destructor)
 
-auto-chroot chroot-auto() {
+function auto-chroot chroot-auto() {
     arch $1
     chroot-config
     chroot-create
-#    serve-local-repo on
+    #    serve-local-repo on
 }
 
 function chroot arch() {
@@ -43,46 +48,53 @@ function chroot arch() {
 
     case $1 in
         i386|amd64) chroot_arch=$1 ;;
+        arm*)
+            arch_include=abootimg,cgpt,fake-hwclock,ntpdate,u-boot-tools
+            arch_include=,vboot-utils,vboot-kernel-utils
+            chroot_arch=$1
+            chroot_qemu=arm
+            ;;
+        mips*)
+            chroot_arch=$1
+            chroot_qemu=$1
+            ;;
         *)
             [[ "$1" = "" ]] || {
-                warn "Chroot architecture not supported $1"
-                warn "Only architectures supported: i386 or amd64"
+                warn "$1: chroot architecture not supported"
             }
-            act -n "Existing chroots: "
+            act -n "Existing chroots in /etc/schroot: "
             schroot -l 2>/dev/null | awk -F: '
 /devuan/ {
   gsub(/devuan-/,"",$2)
   printf $2 " "
 }'
             print >&2
+            act "Existing chroots in $R/chroot:"
+            ls $R/chroot
             return 0
             ;;
     esac
 
     notice "Chroot selected: $chroot_arch"
     if [[ -r $R/chroot/$chroot_arch/etc/passwd ]]; then
-        act "ready for use (build or run chroot-enter)"
+        act "ready for use (build or enter inside using sdk-chroot-do)"
     else
-        act "not existing yet (run chroot-create)"
+        act "no built chroot found (run sdk-chroot-build)"
     fi
 }
 
-chroot-config() {
-    fn chroot-config
+chroot-create() {
+    fn chroot-create
     req=(chroot_arch)
+    freq=(/etc/schroot/chroot.d/devuan-$chroot_arch)
     reqck || return $?
 
-    [[ -r /etc/schroot/chroot.d/devuan-$chroot_arch ]] && {
-        warn "Chroot configuration already existing: /etc/schroot/chroot.d/devuan-$chroot_arch"
-        warn "To delete it, also erase $R/chroot/$chroot_arch"
-        return 0
-    }
+    if [[ -r /etc/schroot/chroot.d/devuan-$chroot_arch ]]; then
+        act "SChroot configuration found: /etc/schroot/chroot.d/devuan-$chroot_arch"
+    else
+        sudo mkdir -p $R/chroot/$chroot_arch
 
-    sudo mkdir -p $R/chroot/$chroot_arch
-
-    ztmp
-    chmod a+r $ztmpfile
-    cat <<EOF >> $ztmpfile
+        cat <<EOF | sudo tee /etc/schroot/chroot.d/devuan-$chroot_arch
 [devuan-$chroot_arch]
 type=directory
 directory=$R/chroot/$chroot_arch
@@ -92,104 +104,175 @@ root-users=$USER
 aliases=${release}-${chroot_arch}
 EOF
 
-    sudo \
-        cp $ztmpfile /etc/schroot/chroot.d/devuan-$chroot_arch
-    res=$?
+        [[ $? = 0 ]] || {
+            error "can't write new schroot conf file in /etc"
+            return 1 }
 
-    notice "Devuan schroot configuration created for arch $chroot_arch"
-    func "found in: /etc/schroot/chroot.d/devuan-$chroot_arch"
-    return $res
-}
+        notice "Devuan schroot configuration created for arch $chroot_arch"
+        func "found in: /etc/schroot/chroot.d/devuan-$chroot_arch"
+    fi
 
-chroot-create() {
-    fn chroot-create
-    req=(chroot_arch)
-    reqck || return $?
+    [[ "$1" = "" ]] || [[ "$1" = "first" ]] && {
+        notice "First stage debootstrap"
 
-    [[ -r $R/chroot/$chroot_arch/etc/passwd ]] && {
-        warn "Chroot already existing: $R/chroot/$chroot_arch"
-        return 0
+        # chroot configuration
+        chroot_include=bzip2,less,dialog,sysvinit,debian-keyring,devuan-keyring
+        chroot_include+=,apt-utils,fakeroot,zsh,e2fsprogs,curl,file
+
+        chroot_exclude=libsystemd0,systemd,systemd-sysv
+        chroot_variant=buildd
+        chroot_comp=main
+
+
+        sudo \
+            debootstrap \
+            --variant=$chroot_variant \
+            --verbose \
+            --include=$chroot_include,$arch_include \
+            --exclude=$chroot_exclude \
+            --components=$chroot_comp \
+            --foreign --arch $chroot_arch \
+            --no-check-gpg \
+            $release $R/chroot/$chroot_arch $mirror
     }
 
-    # not anymore necessary since now Devuan exists and we are in it
-    # so we can use the current deboostrap. Still useful for anyone
-    # willing to test modifications on debootstrap.
-    #
-    # notice "Build and install Devuan debootstrap on host"
-    # .build-bootstrap debootstrap
-    # sudo dpkg -i $R/bootstrap/${src_name}_${src_ver}_all.deb
-    #
-
-    notice "First stage debootstrap"
-
-    # chroot configuration
-    chroot_include=bzip2,less,dialog,sysvinit,debian-keyring,devuan-keyring,apt-utils,fakeroot,zsh
-    chroot_exclude=libsystemd0,systemd,systemd-sysv
-    chroot_variant=buildd
-    chroot_comp=main
-
-    sudo \
-        debootstrap --components=$chroot_comp \
-        --variant=$chroot_variant \
-        --verbose \
-        --foreign --arch $chroot_arch \
-        --include=$chroot_include \
-        --exclude=$chroot_exclude \
-        --no-check-gpg \
-        $release $R/chroot/$chroot_arch $mirror
 
     notice "Second stage debootstrap"
 
-    schroot -c devuan-$chroot_arch -u root \
-        -d /debootstrap -- ./debootstrap --second-stage
+    # if using qemu for cross-build then copy it inside the chroot
+    [[ "$chroot_qemu" = "" ]] || {
+        cat /usr/bin/qemu-$chroot_qemu-static \
+            | chowrite /usr/bin/qemu-$chroot_qemu-static +x }
 
-    # notice "Build and install Devuan baseconf in chroot"
-    # .build-bootstrap devuan-baseconf
-    # sudo \
-    #     cp $R/bootstrap/${src_name}_${src_ver}_all.deb \
-    #     $R/chroot/$chroot_arch/root
-    # chdo \
-    #     dpkg -i /root/${src_name}_${src_ver}_all.deb
+    chdo /debootstrap/debootstrap --second-stage
 
-    # notice "Build and install Devuan keyring in chroot"
-    # .build-bootstrap devuan-keyring
-    # sudo \
-    #     cp $R/bootstrap/${src_name}_${src_ver}_all.deb \
-    #     $R/chroot/$chroot_arch/root
-    # chdo \
-    #     dpkg -i /root/${src_name}_${src_ver}_all.deb
+
+
+    notice "Third stage debootstrap"
+
+    cat << EOF | chowrite /etc/apt/sources.list
+deb $mirror jessie main
+EOF
+
+    packages=initramfs-tools,parted,dhcpcd5,openssh-server
+    packages+=,usbutils,htop,vim-nox,usbutils,tmux,screen
+    packages+=,wpasupplicant,git-core,binutils,ca-certificates
+    packages+=,u-boot-tools,locales,console-common,less,nano,git
+
+    chdo apt-get update
+    chdo apt-get install --yes --force-yes \
+         --no-install-recommends `echo $packages | sed -e 's/,/ /g'`
+
+    print "devuan" | chowrite /etc/hostname
+    cat << EOF | chowrite /etc/hosts
+127.0.0.1       devuan    localhost
+::1             localhost ip6-localhost ip6-loopback
+fe00::0         ip6-localnet
+ff00::0         ip6-mcastprefix
+ff02::1         ip6-allnodes
+ff02::2         ip6-allrouters
+EOF
+
+    cat << EOF | chowrite /etc/network/interfaces
+auto lo
+iface lo inet loopback
+auto eth0
+iface eth0 inet dhcp
+EOF
+
+    cat << EOF | chowrite /etc/resolv.conf
+# ccc dns
+nameserver 85.214.20.141
+nameserver 213.73.91.35
+EOF
+
+    export MALLOC_CHECK_=0 # workaround for LP: #520465
+    export LC_ALL=C
+    export DEBIAN_FRONTEND=noninteractive
+
+    cat << EOF | chowrite /debconf.set
+console-common console-data/keymap/policy select Select keymap from full list
+console-common console-data/keymap/full select en-latin1-nodeadkeys
+EOF
+
+    cat << EOF | chowrite /third-stage +x
+#!$chroot_shell
+dpkg-divert --add --local --divert /usr/sbin/invoke-rc.d.chroot --rename /usr/sbin/invoke-rc.d
+cp /bin/true /usr/sbin/invoke-rc.d
+echo -e "#!/bin/sh\nexit 101" > /usr/sbin/policy-rc.d
+chmod +x /usr/sbin/policy-rc.d
+
+debconf-set-selections /debconf.set
+
+echo "root:devuan" | chpasswd
+sed -i -e 's/KERNEL\!=\"eth\*|/KERNEL\!=\"/' /lib/udev/rules.d/75-persistent-net-generator.rules
+rm -f /etc/udev/rules.d/70-persistent-net.rules
+export DEBIAN_FRONTEND=noninteractive
+apt-get --yes --force-yes autoremove
+
+echo "Making the image insecure"
+sed -i -e 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+update-rc.d ssh enable
+
+rm -f /usr/sbin/policy-rc.d
+rm -f /usr/sbin/invoke-rc.d
+dpkg-divert --remove --rename /usr/sbin/invoke-rc.d
+
+# rm -f /third-stage
+EOF
 
     notice "Updating package lists in chroot"
-    chdo \
-        apt-get update
-
-    # notice "Installing build tools in chroot"
-    # chdo \
-    #     apt-get install -y zsh vim-nox \
-    #     xorriso cpio xz-utils isolinux \
-    #     dpkg-dev gcc g++ autoconf automake libtool \
-    #     fakeroot
+    chdo /third-stage
 
     notice "Chroot succesfully created: $chroot_arch"
+
 }
 
+# execute a command in the chroot
 chdo() {
     fn chdo
     req=(chroot_arch)
-    freq=($R/chroot/$chroot_arch/etc/passwd)
     reqck || return $?
 
-    schroot -c devuan-$chroot_arch -s $chroot_shell \
-        -u root -d /root -- $@
+    case $chroot_arch in
+        arm*)
+            sudo schroot -c devuan-$chroot_arch -s $chroot_shell \
+                    -u root -d /root \
+                    -- /usr/bin/qemu-$chroot_qemu-static $chroot_shell $*
+        ;;
+        *)
+            sudo schroot -c devuan-$chroot_arch -s $chroot_shell \
+                    -u root -d /root -- $*
+            ;;
+    esac
 }
 
-chroot-enter() {
-    fn chroot-enter
+# append stdin to a file in the chroot
+chappend() {
+    fn chappend $*
     req=(chroot_arch)
-    freq=($R/chroot/$chroot_arch/etc)
-    reqck || return $?
+    ckreq || return $?
 
-    schroot -c devuan-$chroot_arch -u root -d /root -s /bin/bash
+    dest="$1"
+    [[ -r $dest ]] || {
+        error "chappend: destination file doesn't exists: $dest"
+        return 1 }
+    cat | suro tee -a $R/chroot/$chroot_arch/$dest >/dev/null
+}
+# cat stding to overwrite a file in the chroot
+chowrite() {
+    fn chowrite $*
+    req=(chroot_arch)
+    ckreq || return $?
+
+    dest="$1"
+    destdir=`dirname $1`
+    [[ -r $destdir ]] || {
+        error "chowrite: destination dir doesn't exists: $destdir"
+        return 1 }
+    sudo rm -f $R/chroot/$chroot_arch/$dest
+    cat | sudo tee $R/chroot/$chroot_arch/$dest >/dev/null
+    [[ "$2" = "+x" ]] && sudo chmod a+x $R/chroot/$chroot_arch/$dest
 }
 
 
@@ -217,8 +300,8 @@ serve-local-repo() {
 
             TRAPZERR() { }
             grep "localhost:12345" \
-                $root/etc/apt/sources.list \
-                > /dev/null
+                 $root/etc/apt/sources.list \
+                 > /dev/null
             # if not already present, add to top
             [[ $? = 0 ]] || {
                 cat <<EOF >> $tmp

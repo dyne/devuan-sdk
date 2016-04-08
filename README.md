@@ -2,7 +2,7 @@
 
 ## Simple (package) development kit
 
-### version 0.4
+### version 0.6
 
 #### DISCLAIMER
 
@@ -32,25 +32,17 @@ If you try this fast and loose use a disposable system ;^)
 This SDK is designed to be used interactively from a terminal as well
 from shell scripts.
 
-Using Debian or Ubuntu, install:
+Using Debian or Ubuntu, install the following packages:
 
 ```
-sudo zsh gnupg2 schroot debootstrap debhelper makedev curl rsync dpkg-dev
+gnupg2 schroot debootstrap debhelper makedev curl rsync dpkg-dev \
+gcc-arm-none-eabi parted kpartx qemu-user-static pinthread sudo
 ```
 
-
-The last one it may be called `dpkg` or `dpkg-devtools` on other
-systems like Arch and Parabola.
-
-Sudo will be used to elevate the sdk user to superuser privileges only
-when needed. In some cases one needs to make sure the following
-commands are autorized in your `/etc/sudoers` file. For instance
-assuming your username is `luther` then it should have:
-
-```
-Cmnd_Alias  DEVUAN = /usr/sbin/debootstrap, /usr/bin/rsync, /usr/bin/test, /usr/bin/curl
-luther  ALL= NOPASSWD: DEVUAN
-```
+Please note that:
+ - `dpkg-dev` may be called `dpkg` or `dpkg-devtools` on other systems like Arch and Parabola.
+ - `pinthread` is Devuan software and may not exist in other distros
+ - `sudo` is used to elevate the sdk user to superuser privileges and should be configured accordingly
 
 # Quick start
 
@@ -69,38 +61,46 @@ Then run ZSh. In case you have conflicting extensions on your zsh
 configuration, it may be needed to run from a vanilla one, using:
 
 ```
-sudo zsh --no-rcs
+zsh --no-rcs
 ```
 
-then step inside the sdk, "source" it and initialize it:
+then step inside the sdk, "source" it:
 
 ```
 cd devuan-sdk
+
 source sdk
-init
 ```
 
-Init will require an Internet connection to download all Devuan source
-package repositories. Once `init` is done, then the `stage` directory
-will contain all the Devuan source package repositories.
+then initialise it (needs to be done only the first time)
+
+```
+sdk-init
+```
+
+from inside the sdk environment is possible to tab-complete available public commands using `sdk-[tab]`.
+```
+
+## Chroot build
 
 To proceed further we need to build our software packages and toast
 them into an installer iso. First of all, choose the architecture for
-which we are building. At the moment one can choose between `amd64`
-and `i386`, we will choose the latter:
+which we are building. One can choose between `amd64` or `i386` or
+`armhf` or other architectures.
 
 ```
-arch i386
-chroot-config
-chroot-create
+sdk-chroot-arch i386
+
+sdk-chroot-build
 ```
 
-Beware, this will take long: will run debootstrap, download Debian's
-netinst iso and customize it as needed.
+Beware, this will take long.
 
 Consider a single SDK can create more than one chroot for multiple
 architectures and they keep existing between builds.
-Switching is done via `arch`.
+Switching is done via `sdk-chroot-arch`.
+
+## ISO build
 
 Now the next step: toast the iso with all the built packages inside.
 First choose what kind of seed configuration is wanted, at the time of
@@ -211,15 +211,15 @@ Once we have staged a package and eventually extirpated any systemd
 dependencies, we'll certainly want to test locally its build and
 perhaps also install it on a test system to see if all works well. The
 SDK build is facilitated by `schroot` (which must be installed) and
-operated via the set of `chroot-` commands.
+operated via the set of `sdk-chroot-` commands.
 
 First of all choose the target architecture (we will use `i386`) and
 then create the chroot (will ask for the super user password with
 sudo):
 
 ```
-arch i386
-chroot-create
+sdk-chroot-arch armhf
+sdk-chroot-build
 ```
 
 Then wait since this will take a while the first time. The chroot will
@@ -232,7 +232,7 @@ Once this process is finished, one can "enter" the chroot and use it
 from inside (also install packages and try out things). Just do:
 
 ```
-chroot-enter
+sdk-chroot-do
 ```
 
 Chroots are nested operating systems stored as directory structures

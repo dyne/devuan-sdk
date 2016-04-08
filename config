@@ -6,7 +6,7 @@
 # syntax: variable=value
 # (no spaces before and after the equal sign)
 
-mirror=https://packages.devuan.org/merged
+mirror=http://packages.devuan.org/merged
 release=jessie
 section=main
 version=alpha4

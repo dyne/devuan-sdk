@@ -192,12 +192,12 @@ build-deps() {
 build-clean() {
     fn build-clean $*
     what=${1:-'sources'}
+    orig_ver=${src_ver%-*}
     req=(chroot_arch src_name src_ver orig_ver)
     freq=($R/$what/${src_name}-${src_ver}/debian/control
         $R/chroot/$chroot_arch/etc/passwd)
     reqck || return $?
 
-    orig_ver=${src_ver%-*}
 
     [[ -d $R/chroot/$chroot_arch/usr/src/$src_name-${orig_ver} ]] && {
         notice "Clean source in chroot /usr/src/$src_name-${orig_ver}"

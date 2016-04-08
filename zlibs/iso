@@ -207,7 +207,7 @@ iso-import() {
             # debian-$release-DI-rc2-$chroot_arch-netinst.iso
             ;;
         xfce*)
-            iso_img=debian-$release-DI-rc2-$chroot_arch-xfce-CD-1.iso
+            iso_img=debian-8.4.0-amd64-xfce-CD-1.iso
             ;;
         *)
             error "ISO type not supported: $iso_type"
@@ -628,17 +628,25 @@ iso-make() {
     req=(chroot_arch release)
     root=$R/chroot/$chroot_arch
     iso=usr/src/devuan-iso/$release-$chroot_arch-$iso_type
-    freq=($R/chroot/$chroot_arch/$iso/initrd.gz)
+    # freq=($R/chroot/$chroot_arch/$iso/initrd.gz)
     reqck || return $?
 
     notice "Toasting $iso_type for $release $chroot_arch"
+    if [[ -r $root/$iso/isolinux.bin ]]; then
+        isolinux=isolinux.bin
+    elif [[ -r $root/$iso/isolinux/isolinux.bin ]]; then
+        isolinux=isolinux/isolinux.bin
+    else
+        error "isolinux.bin not found in $root/$iso"
+        return 1
+    fi
 
     schroot -c devuan-$chroot_arch \
         -u root -d /usr/src/devuan-iso -- \
         xorriso -as mkisofs -output devuan-$release-$chroot_arch-$iso_type.iso \
         -iso-level 3 -full-iso9660-filenames -r -J -no-emul-boot -boot-load-size 4 \
         -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -partition_offset 16 \
-        -boot-info-table -b isolinux.bin -c boot.cat \
+        -boot-info-table -b $isolinux -c boot.cat \
         ./$release-$chroot_arch-$iso_type
 
     # move the final iso out of the chroot
