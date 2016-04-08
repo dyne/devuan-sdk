@@ -1,0 +1,119 @@
+#!/usr/bin/env zsh
+
+
+make-partitions() {
+
+    # Create the disk and partition it
+    notice "Creating Devuan $release for Raspberry Pi2 in $basedir"
+    dd if=/dev/zero of=${basedir}/devuan-$release-rpi2.img bs=1M count=$size
+    parted devuan-$release-rpi2.img --script -- mklabel msdos
+    parted devuan-$release-rpi2.img --script -- mkpart primary fat32 0 64
+    parted devuan-$release-rpi2.img --script -- mkpart primary ext4 64 -1
+
+    # Set the partition variables
+    loopdevice=`sudo losetup -f --show ${basedir}/devuan-$release-rpi2.img`
+    func "loopdevice: $loopdevice"
+    device=`sudo kpartx -va $loopdevice| sed -E 's/.*(loop[0-9])p.*/\1/g' | head -1`
+    func "device: /dev/mapper/$device"
+    sleep 5
+    device="/dev/mapper/${device}"
+    bootp=${device}p1
+    rootp=${device}p2
+
+    # Create file systems
+    sudo mkfs.vfat $bootp
+    sudo mkfs.ext4 $rootp
+
+    # Create the dirs for the partitions and mount them
+    mkdir -p ${basedir}/bootp ${basedir}/root
+    sudo mount $bootp ${basedir}/bootp
+    sudo mount $rootp ${basedir}/root
+
+}
+
+
+
+
+build-kernel() {
+
+    # Kernel section. If you want to use a custom kernel, or configuration, replace
+    # them in this section.
+    [[ -r $basedir/root/usr/src/kernel/linux ]] || {
+        act "https://github.com/raspberrypi/linux cloning repository"
+        git clone --depth 1 https://github.com/raspberrypi/linux -b rpi-4.1.y ${basedir}/root/usr/src/kernel
+    }
+
+    cd ${basedir}/root/usr/src/kernel
+    git rev-parse HEAD > ../kernel-at-commit
+    patch -p1 --no-backup-if-mismatch < $R/machines/patches/kali-wifi-injection-4.1.patch
+    touch .scmversion
+    export ARCH=arm
+    export CROSS_COMPILE=arm-linux-gnueabihf-
+    cp $R/machines/kernel-configs/rpi2-4.1.config .config
+    cp $R/machines/kernel-configs/rpi2-4.1.config ../rpi2-4.1.config
+    make
+    make modules_install INSTALL_MOD_PATH=${basedir}/root
+    [[ -r rpi-firmware ]] || {
+        act "https://github.com/raspberrypi/firmware.git cloning repository"
+        git clone --depth 1 https://github.com/raspberrypi/firmware.git rpi-firmware
+    }
+
+    cp -rf rpi-firmware/boot/* ${basedir}/bootp/
+    # ARGH.  Device tree support requires we run this *sigh*
+    perl scripts/mkknlimg --dtok arch/arm/boot/zImage ${basedir}/bootp/kernel7.img
+    #cp arch/arm/boot/zImage ${basedir}/bootp/kernel7.img
+    cp arch/arm/boot/dts/bcm*.dtb ${basedir}/bootp/
+    cp arch/arm/boot/dts/overlays/*overlay*.dtb ${basedir}/bootp/overlays/
+    # rm -rf ${basedir}/root/lib/firmware
+    cd ${basedir}/root/lib
+    [[ -r firmware ]] || {
+        act "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git cloning repository"
+        git clone --depth 1 https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git firmware
+    }
+    # rm -rf ${basedir}/root/lib/firmware/.git
+    cd ${basedir}/root/usr/src/kernel
+    make INSTALL_MOD_PATH=${basedir}/root firmware_install
+    make mrproper
+    cp ../rpi2-4.1.config .config
+    make modules_prepare
+    # rm -rf rpi-firmware
+    cd ${basedir}
+
+}
+
+close-image() {
+
+
+    # Create cmdline.txt file
+    cat << EOF > ${basedir}/bootp/cmdline.txt
+dwc_otg.fiq_fix_enable=2 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait rootflags=noload net.ifnames=0
+EOF
+
+    # systemd doesn't seem to be generating the fstab properly for some people, so
+    # let's create one.
+    cat << EOF > ${basedir}/root/etc/fstab
+# <file system> <mount point>   <type>  <options>       <dump>  <pass>
+proc /proc proc nodev,noexec,nosuid 0  0
+/dev/mmcblk0p2  / ext4 errors=remount-ro 0 1
+# Change this if you add a swap partition or file
+#/dev/SWAP none swap sw 0 0
+/dev/mmcblk0p1 /boot vfat noauto 0 0
+EOF
+
+
+    # Firmware needed for rpi3 wifi/bt
+    mkdir -p ${basedir}/root/lib/firmware/brcm/
+    cp $R/machines/misc/rpi3/brcmfmac43430-sdio.txt ${basedir}/root/lib/firmware/brcm/
+    cp $R/machines/misc/rpi3/brcmfmac43430-sdio.bin ${basedir}/root/lib/firmware/brcm/
+
+    cp $R/machines/misc/zram ${basedir}/root/etc/init.d/zram
+    chmod +x ${basedir}/root/etc/init.d/zram
+
+
+    # Unmount partitions
+    sudo umount $bootp
+    sudo umount $rootp
+    sudo kpartx -dv $loopdevice
+    sudo losetup -d $loopdevice
+
+}

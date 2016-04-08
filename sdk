@@ -81,6 +81,9 @@ source zlibs/build
 # source zlibs/mirror
 source zlibs/iso
 source zlibs/packer
+source zlibs/imgpack
+
+# self-documenting public calls
 source zlibs/public
 
 # complete zuper initialization
@@ -88,7 +91,7 @@ source zlibs/zuper.init
 
 # unset DEBUG_BEFORE_CMD
 TRAPDEBUG() {
-    RPROMPT="${repo_name:-$src_name} ${repo_ver:-$src_ver} ${chroot_arch} ${iso_type}"
+    RPROMPT="${repo_name:-$src_name} ${repo_ver:-$src_ver} ${chroot_arch} ${iso_type} ${img_machine}"
 }
 
 # exit on error of any function

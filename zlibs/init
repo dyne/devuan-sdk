@@ -23,13 +23,14 @@
 init() {
     fn init
 
-    # initialization
-    init-sources && init-keyring
-
     mkdir -p $R/sources
     mkdir -p $R/stage
     mkdir -p $R/chroot
     mkdir -p $R/builds
+
+    # initialization
+    init-sources && init-keyring
+
 
     notice "Devuan SDK succesfully initialized"
     act "For usage information refer to the README."

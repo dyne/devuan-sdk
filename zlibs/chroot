@@ -107,7 +107,9 @@ EOF
         func "found in: /etc/schroot/chroot.d/devuan-$chroot_arch"
     fi
 
-    [[ "$1" = "" ]] || [[ "$1" = "first" ]] && {
+    stage=${1:-all}
+
+    [[ "$1" = "all" ]] || [[ "$1" = "first" ]] && {
         notice "First stage debootstrap"
 
         # chroot configuration
@@ -130,29 +132,38 @@ EOF
     }
 
 
-    notice "Second stage debootstrap"
+    [[ "$1" = "all" ]] || [[ "$1" = "second" ]] && {
 
-    # if using qemu for cross-build then copy it inside the chroot
-    [[ "$chroot_qemu" = "" ]] || {
-        cat /usr/bin/qemu-$chroot_qemu-static \
-            | chowrite /usr/bin/qemu-$chroot_qemu-static +x }
+        notice "Second stage debootstrap"
 
-    chdo /debootstrap/debootstrap --second-stage
+        # if using qemu for cross-build then copy it inside the chroot
+        [[ "$chroot_qemu" = "" ]] || {
+            cat /usr/bin/qemu-$chroot_qemu-static \
+                | chowrite /usr/bin/qemu-$chroot_qemu-static +x }
+
+        # zsh is not yet installed
+        # chdo /debootstrap/debootstrap --second-stage
+        schroot -c devuan-$chroot_arch -s /bin/sh \
+                -u root -d /root \
+                -- /usr/bin/qemu-$chroot_qemu-static /bin/sh \
+                /debootstrap/debootstrap --second-stage
+    }
 
 
+    [[ "$1" = "all" ]] || [[ "$1" = "third" ]] && {
 
-    notice "Third stage debootstrap"
+        notice "Third stage debootstrap"
 
-    cat << EOF | chowrite /etc/apt/sources.list
+        cat << EOF | chowrite /etc/apt/sources.list
 deb $mirror jessie main
 EOF
 
-    chdo apt-get update
-    chdo apt-get install --yes --force-yes \
-         --no-install-recommends ${=system_packages}
+        chdo apt-get update
+        chdo apt-get install --yes --force-yes \
+             --no-install-recommends ${=system_packages}
 
-    print "devuan" | chowrite /etc/hostname
-    cat << EOF | chowrite /etc/hosts
+        print "devuan" | chowrite /etc/hostname
+        cat << EOF | chowrite /etc/hosts
 127.0.0.1       devuan    localhost
 ::1             localhost ip6-localhost ip6-loopback
 fe00::0         ip6-localnet
@@ -161,29 +172,29 @@ ff02::1         ip6-allnodes
 ff02::2         ip6-allrouters
 EOF
 
-    cat << EOF | chowrite /etc/network/interfaces
+        cat << EOF | chowrite /etc/network/interfaces
 auto lo
 iface lo inet loopback
 auto eth0
 iface eth0 inet dhcp
 EOF
 
-    cat << EOF | chowrite /etc/resolv.conf
+        cat << EOF | chowrite /etc/resolv.conf
 # ccc dns
 nameserver 85.214.20.141
 nameserver 213.73.91.35
 EOF
 
-    export MALLOC_CHECK_=0 # workaround for LP: #520465
-    export LC_ALL=C
-    export DEBIAN_FRONTEND=noninteractive
+        export MALLOC_CHECK_=0 # workaround for LP: #520465
+        export LC_ALL=C
+        export DEBIAN_FRONTEND=noninteractive
 
-    cat << EOF | chowrite /debconf.set
+        cat << EOF | chowrite /debconf.set
 console-common console-data/keymap/policy select Select keymap from full list
 console-common console-data/keymap/full select en-latin1-nodeadkeys
 EOF
 
-    cat << EOF | chowrite /third-stage +x
+        cat << EOF | chowrite /third-stage +x
 #!$chroot_shell
 dpkg-divert --add --local --divert /usr/sbin/invoke-rc.d.chroot --rename /usr/sbin/invoke-rc.d
 cp /bin/true /usr/sbin/invoke-rc.d
@@ -209,10 +220,10 @@ dpkg-divert --remove --rename /usr/sbin/invoke-rc.d
 # rm -f /third-stage
 EOF
 
-    notice "Updating package lists in chroot"
-    chdo /third-stage
-
-    notice "Chroot succesfully created: $chroot_arch"
+        notice "Updating package lists in chroot"
+        chdo /third-stage
+    }
+    notice "$chroot_arch: $stage chroot stage(s) succesfully built"
 
 }
 
@@ -251,7 +262,7 @@ chappend() {
     [[ -r $dest ]] || {
         error "chappend: destination file doesn't exists: $dest"
         return 1 }
-    cat | suro tee -a $R/chroot/$chroot_arch/$dest >/dev/null
+    cat | sudo tee -a $R/chroot/$chroot_arch/$dest >/dev/null
 }
 
 # cat stding to overwrite a file in the chroot

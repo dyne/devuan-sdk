@@ -1,0 +1,73 @@
+#!/usr/bin/env zsh
+
+# Devuan SDK - chroot management
+
+# Copyright (C) 2016 Dyne.org Foundation
+#
+# Devuan SDK is designed, written and maintained by Denis Roio <jaromil@dyne.org>
+#
+# This source code is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This source code is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  Please refer
+# to the GNU Public License for more details.
+#
+# You should have received a copy of the GNU Public License along with
+# this source code; if not, write to: Free Software Foundation, Inc.,
+# 675 Mass Ave, Cambridge, MA 02139, USA.
+
+## image packing procedures
+# collection of procedures to pack a chroot into a filesystem image
+# usable for SD cards i.e. for embedded devices
+
+vars+=(size basedir device bootp rootp loopdevice device)
+
+img-machine() {
+    fn img-machine
+    img_machine=$1
+    req=(img_machine)
+    freq=($R/machines/$img_machine)
+    ckreq || return $?
+
+    basedir=$R/builds/$img_machine
+    notice "$img_machine machine selected to build image"
+    mkdir -p $basedir
+
+    # load specific image
+    unset make-partitions
+    source $R/machines/$img_machine
+    # configured partitioning
+
+    size=2000 # Size of image in megabytes
+
+}
+
+img-pack() {
+    fn img-pack $*
+    req=(img_machine chroot_arch basedir size)
+    freq=($R/machines/$img_machine $R/chroot/$chroot_arch $basedir)
+    ckreq || return $?
+
+    # here go all generic operations to be done for all images before partitioning
+    mkdir -p $R/builds/$img_machine/bootp
+    mkdir -p $R/builds/$img_machine/root
+
+    act "enable login over serial"
+    print "T0:23:respawn:/sbin/agetty -L ttyAMA0 115200 vt100" | chappend /etc/inittab
+
+    pushd ${basedir}
+
+    make-partitions
+    [[ $? = 0 ]] || {
+        error "$img_machine: make-partitions aborts with error"
+        return 1 }
+
+    popd
+    act "rsyncing chroot into image file"
+    sudo rsync -HPavz -q $R/chroot/$chroot_arch/ $R/builds/$img_machine/root/
+
+}
