@@ -22,11 +22,13 @@
 
 vars+=(arch_include chroot_arch chroot_include chroot_shell)
 vars+=(chroot_qemu chroot_device)
+# chroot_qemu tells if chroot is cross-compiling and needs qemu-static
 
 # default shell for the chroot
-chroot_shell=/bin/bash
-# tells if chroot is cross-compiling and needs qemu-static
-chroot_qemu=""
+chroot_shell=/bin/zsh
+
+
+
 
 # destructor for all open chroot sessions
 chroot-destructor() {
@@ -36,14 +38,8 @@ chroot-destructor() {
 }
 destruens+=(chroot-destructor)
 
-function auto-chroot chroot-auto() {
-    arch $1
-    chroot-config
-    chroot-create
-    #    serve-local-repo on
-}
 
-function chroot arch() {
+function arch() {
     fn arch
 
     case $1 in
@@ -52,7 +48,7 @@ function chroot arch() {
             arch_include=abootimg,cgpt,fake-hwclock,ntpdate,u-boot-tools
             arch_include=,vboot-utils,vboot-kernel-utils
             chroot_arch=$1
-            chroot_qemu=arm
+            chroot_qemu=arm # all arm except armeb
             ;;
         mips*)
             chroot_arch=$1
@@ -86,7 +82,6 @@ function chroot arch() {
 chroot-create() {
     fn chroot-create
     req=(chroot_arch)
-    freq=(/etc/schroot/chroot.d/devuan-$chroot_arch)
     reqck || return $?
 
     if [[ -r /etc/schroot/chroot.d/devuan-$chroot_arch ]]; then
@@ -116,10 +111,8 @@ EOF
         notice "First stage debootstrap"
 
         # chroot configuration
-        chroot_include=bzip2,less,dialog,sysvinit,debian-keyring,devuan-keyring
-        chroot_include+=,apt-utils,fakeroot,zsh,e2fsprogs,curl,file
-
-        chroot_exclude=libsystemd0,systemd,systemd-sysv
+        chroot_include="${base_packages// /,}"
+        chroot_exclude="${exclude_packages// /,}"
         chroot_variant=buildd
         chroot_comp=main
 
@@ -154,14 +147,9 @@ EOF
 deb $mirror jessie main
 EOF
 
-    packages=initramfs-tools,parted,dhcpcd5,openssh-server
-    packages+=,usbutils,htop,vim-nox,usbutils,tmux,screen
-    packages+=,wpasupplicant,git-core,binutils,ca-certificates
-    packages+=,u-boot-tools,locales,console-common,less,nano,git
-
     chdo apt-get update
     chdo apt-get install --yes --force-yes \
-         --no-install-recommends `echo $packages | sed -e 's/,/ /g'`
+         --no-install-recommends ${=system_packages}
 
     print "devuan" | chowrite /etc/hostname
     cat << EOF | chowrite /etc/hosts
@@ -230,16 +218,22 @@ EOF
 
 # execute a command in the chroot
 chdo() {
-    fn chdo
+    fn chdo $*
     req=(chroot_arch)
     reqck || return $?
 
+    [[ "$*" = "" ]] && {
+        error "missing program (and arguments) to execute in chroot"
+        return 1 }
+
+    func "$chroot_arch qemu exec: $*"
     case $chroot_arch in
         arm*)
-            sudo schroot -c devuan-$chroot_arch -s $chroot_shell \
+            schroot -c devuan-$chroot_arch -s $chroot_shell \
                     -u root -d /root \
-                    -- /usr/bin/qemu-$chroot_qemu-static $chroot_shell $*
+                    -- /usr/bin/qemu-$chroot_qemu-static $chroot_shell -c "$*"
         ;;
+
         *)
             sudo schroot -c devuan-$chroot_arch -s $chroot_shell \
                     -u root -d /root -- $*
@@ -259,6 +253,7 @@ chappend() {
         return 1 }
     cat | suro tee -a $R/chroot/$chroot_arch/$dest >/dev/null
 }
+
 # cat stding to overwrite a file in the chroot
 chowrite() {
     fn chowrite $*

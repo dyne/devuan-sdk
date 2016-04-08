@@ -11,6 +11,20 @@ release=jessie
 section=main
 version=alpha4
 
+base_packages=(bzip2 less dialog zsh sysvinit debian-keyring devuan-keyring)
+base_packages+=(apt-utils fakeroot e2fsprogs curl file)
+
+# tools
+system_packages=(initramfs-tools parted usbutils binutils ca-certificates u-boot-tools git)
+# diagnostics
+system_packages+=(htop iotop iftop wavemon)
+# usability
+system_packages+=(console-common locales tmux screen vim-nox joe nano less)
+# networking
+system_packages+=(dhcpcd5 openssh-server wpasupplicant)
+
+# keep far from us
+exclude_packages=(libsystemd0 systemd systemd-sysv)
 
 # TODO: make a iso skeleton of our own
 iso_mirror=https://vagrant.devuan.org
