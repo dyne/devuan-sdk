@@ -27,7 +27,6 @@
 
 source sdk
 
-TRAPZERR() { }
 
 # arguments passed via env vars
 REPO=${REPO:-http://packages.devuan.org/devuan/dists}
@@ -78,35 +77,35 @@ vm_output=devuan-$SUITE-$ARCH-$VERSION
 
 
 post-packer() {
-[[ "$target" =~ "qemu" ]] && {
-    notice "Shrinking QEMU cow to fit"
-    qemu_convert_args=()
-    # [[ $QUIET = 1 ]] || qemu_convert_args=(-p)
-    qemu-img convert -c -p -O qcow2 $dest/devuan-$SUITE-$ARCH-$VERSION.qcow2 \
-             $R/pub/devuan-$SUITE-$ARCH-$VERSION.qcow2
-}
-
-[[ "$target" =~ "vbox" ]] && {
-    func "toasting vbox"
-    vagrant box list | grep "^devuan-$SUITE-$ARCH-$VERSION" 1>/dev/null 2>/dev/null
-    [[ $? = 0 ]] && {
-        act "Removing old box: devuan-$SUITE-$ARCH-$VERSION"
-        vagrant box remove devuan-$SUITE-$ARCH-$VERSION --provider virtualbox --force }
-    notice "Adding box to local vagrant"
-    vagrant box add devuan-$SUITE-$ARCH-$VERSION $R/pub/devuan-$SUITE-$ARCH-$VERSION.box
-    notice "Mutating the VBOX into QCOW2"
-    vagrant list-commands | grep '^mutate' 1>/dev/null 2>/dev/null
-    [[ $? = 0 ]] || { act "installing vagrant's plugin 'mutate'"
-                      sudo apt-get -y install qemu-utils libvirt-dev
-                      vagrant plugin install vagrant-mutate }
-    vagrant mutate devuan-$SUITE-$ARCH-$VERSION --input-provider virtualbox libvirt && {
-        act "Compressing the mutated QCOW2 into pub"
-        qemu-img convert -c -p -O qcow2 \
-                 ~/.vagrant.d/boxes/devuan-$SUITE-$ARCH-$VERSION/0/libvirt/box.img \
+    [[ "$target" =~ "qemu" ]] && {
+        notice "Shrinking QEMU cow to fit"
+        qemu_convert_args=()
+        # [[ $QUIET = 1 ]] || qemu_convert_args=(-p)
+        qemu-img convert -c -p -O qcow2 $dest/devuan-$SUITE-$ARCH-$VERSION.qcow2 \
                  $R/pub/devuan-$SUITE-$ARCH-$VERSION.qcow2
-        [[ $? = 0 ]] && notice "VBOX succesfully exported to QCOW2"
     }
-}
+
+    [[ "$target" =~ "vbox" ]] && {
+        func "toasting vbox"
+        vagrant box list | grep "^devuan-$SUITE-$ARCH-$VERSION" 1>/dev/null 2>/dev/null
+        [[ $? = 0 ]] && {
+            act "Removing old box: devuan-$SUITE-$ARCH-$VERSION"
+            vagrant box remove devuan-$SUITE-$ARCH-$VERSION --provider virtualbox --force }
+        notice "Adding box to local vagrant"
+        vagrant box add devuan-$SUITE-$ARCH-$VERSION $R/pub/devuan-$SUITE-$ARCH-$VERSION.box
+        notice "Mutating the VBOX into QCOW2"
+        vagrant list-commands | grep '^mutate' 1>/dev/null 2>/dev/null
+        [[ $? = 0 ]] || { act "installing vagrant's plugin 'mutate'"
+                          sudo apt-get -y install qemu-utils libvirt-dev
+                          vagrant plugin install vagrant-mutate }
+        vagrant mutate devuan-$SUITE-$ARCH-$VERSION --input-provider virtualbox libvirt && {
+            act "Compressing the mutated QCOW2 into pub"
+            qemu-img convert -c -p -O qcow2 \
+                     ~/.vagrant.d/boxes/devuan-$SUITE-$ARCH-$VERSION/0/libvirt/box.img \
+                     $R/pub/devuan-$SUITE-$ARCH-$VERSION.qcow2
+            [[ $? = 0 ]] && notice "VBOX succesfully exported to QCOW2"
+        }
+    }
 }
 
 [[ "$1" = "post" ]] && { post-packer; return $? }
@@ -117,8 +116,8 @@ post-packer() {
 required=(xorriso packer rsync sudo vagrant)
 for i in $required; do
     isfound $i || {
-    error "$i is required, but is not found on this system"
-    zerr }
+        error "$i is required, but is not found on this system"
+        zerr }
 done
 
 if [[ -r /usr/lib/syslinux/isohdpfx.bin ]]; then
@@ -129,6 +128,8 @@ else
     error "Isolinux/Syslinux not found: isohdpfx.bin"
     zerr
 fi
+
+TRAPZERR() { }
 
 notice "Baking $SUITE $ARCH using $INST from $REPO"
 
@@ -164,6 +165,7 @@ popd
 
 # Save the mini.iso as the final iso installer
 iso_path=$out/mini.iso
+mkdir -p $R/pub/
 cp $iso_path $R/pub/devuan-${SUITE}-${ARCH}-${VERSION}-netboot.iso
 
 
@@ -219,11 +221,11 @@ done
 act "Toasting the new iso"
 iso_ready=$R/packer/packer_cache/$vm_output-$INST-auto.iso
 xorriso -as mkisofs -output $iso_ready \
-    -iso-level 3 -full-iso9660-filenames -r \
-    -J -no-emul-boot -boot-load-size 4 \
-    -isohybrid-mbr $isohdpfx -partition_offset 16 \
-    -boot-info-table -b isolinux.bin -c boot.cat \
-    $newiso
+        -iso-level 3 -full-iso9660-filenames -r \
+        -J -no-emul-boot -boot-load-size 4 \
+        -isohybrid-mbr $isohdpfx -partition_offset 16 \
+        -boot-info-table -b isolinux.bin -c boot.cat \
+        $newiso
 sha1_ready=`sha1sum $iso_ready`
 sha1_ready=${sha1_ready[(w)1]}
 
