@@ -27,13 +27,14 @@
 
 source sdk
 
+TRAPZERR() { }
 
 # arguments passed via env vars
 REPO=${REPO:-http://packages.devuan.org/devuan/dists}
 SUITE=${SUITE:-jessie}
 ARCH=${ARCH:-i386} # or amd64
 INST=${INST:-netboot}
-VERSION=${VERSION:-alpha4}
+VERSION=${VERSION:-beta}
 
 
 orig_url=$REPO/$SUITE/main/installer-$ARCH/current/images/$INST/mini.iso
@@ -59,7 +60,7 @@ keep_failed_build=false
 
 
 func "destination dir"
-dest=$R/packer/$SUITE-$VERSION/$ARCH-installer-wip
+dest=$R/packer/${SUITE}_${VERSION}/${ARCH}-installer-wip
 [[ -r $dest ]] && {
     act "clean destination: $dest"
     rm -rf $dest }
@@ -72,40 +73,40 @@ case $ARCH in
 esac
 
 
-vm_output=devuan-$SUITE-$ARCH-$VERSION
+vm_output=devuan_${SUITE}_${VERSION}_${ARCH}
 
 
 
 post-packer() {
-    [[ "$target" =~ "qemu" ]] && {
-        notice "Shrinking QEMU cow to fit"
-        qemu_convert_args=()
-        # [[ $QUIET = 1 ]] || qemu_convert_args=(-p)
-        qemu-img convert -c -p -O qcow2 $dest/devuan-$SUITE-$ARCH-$VERSION.qcow2 \
-                 $R/pub/devuan-$SUITE-$ARCH-$VERSION.qcow2
-    }
+[[ "$target" =~ "qemu" ]] && {
+    notice "Shrinking QEMU cow to fit"
+    qemu_convert_args=()
+    # [[ $QUIET = 1 ]] || qemu_convert_args=(-p)
+    qemu-img convert -c -p -O qcow2 $dest/devuan_${SUITE}_${VERSION}_${ARCH}.qcow2 \
+             $R/pub/devuan_${SUITE}_${VERSION}_${ARCH}.qcow2
+}
 
-    [[ "$target" =~ "vbox" ]] && {
-        func "toasting vbox"
-        vagrant box list | grep "^devuan-$SUITE-$ARCH-$VERSION" 1>/dev/null 2>/dev/null
-        [[ $? = 0 ]] && {
-            act "Removing old box: devuan-$SUITE-$ARCH-$VERSION"
-            vagrant box remove devuan-$SUITE-$ARCH-$VERSION --provider virtualbox --force }
-        notice "Adding box to local vagrant"
-        vagrant box add devuan-$SUITE-$ARCH-$VERSION $R/pub/devuan-$SUITE-$ARCH-$VERSION.box
-        notice "Mutating the VBOX into QCOW2"
-        vagrant list-commands | grep '^mutate' 1>/dev/null 2>/dev/null
-        [[ $? = 0 ]] || { act "installing vagrant's plugin 'mutate'"
-                          sudo apt-get -y install qemu-utils libvirt-dev
-                          vagrant plugin install vagrant-mutate }
-        vagrant mutate devuan-$SUITE-$ARCH-$VERSION --input-provider virtualbox libvirt && {
-            act "Compressing the mutated QCOW2 into pub"
-            qemu-img convert -c -p -O qcow2 \
-                     ~/.vagrant.d/boxes/devuan-$SUITE-$ARCH-$VERSION/0/libvirt/box.img \
-                     $R/pub/devuan-$SUITE-$ARCH-$VERSION.qcow2
-            [[ $? = 0 ]] && notice "VBOX succesfully exported to QCOW2"
-        }
+[[ "$target" =~ "vbox" ]] && {
+    func "toasting vbox"
+    vagrant box list | grep "^devuan_${SUITE}_${VERSION}_${ARCH}" 1>/dev/null 2>/dev/null
+    [[ $? = 0 ]] && {
+        act "Removing old box: devuan_${SUITE}_${VERSION}_${ARCH}"
+        vagrant box remove devuan_${SUITE}_${VERSION}_${ARCH} --provider virtualbox --force }
+    notice "Adding box to local vagrant"
+    vagrant box add devuan_${SUITE}_${VERSION}_${ARCH} $R/pub/devuan_${SUITE}_${VERSION}_${ARCH}.box
+    notice "Mutating the VBOX into QCOW2"
+    vagrant list-commands | grep '^mutate' 1>/dev/null 2>/dev/null
+    [[ $? = 0 ]] || { act "installing vagrant's plugin 'mutate'"
+                      sudo apt-get -y install qemu-utils libvirt-dev
+                      vagrant plugin install vagrant-mutate }
+    vagrant mutate devuan_${SUITE}_${VERSION}_${ARCH} --input-provider virtualbox libvirt && {
+        act "Compressing the mutated QCOW2 into pub"
+        qemu-img convert -c -p -O qcow2 \
+                 ~/.vagrant.d/boxes/devuan_${SUITE}_${VERSION}_${ARCH}/0/libvirt/box.img \
+                 $R/pub/devuan_${SUITE}_${VERSION}_${ARCH}.qcow2
+        [[ $? = 0 ]] && notice "VBOX succesfully exported to QCOW2"
     }
+}
 }
 
 [[ "$1" = "post" ]] && { post-packer; return $? }
@@ -116,8 +117,8 @@ post-packer() {
 required=(xorriso packer rsync sudo vagrant)
 for i in $required; do
     isfound $i || {
-        error "$i is required, but is not found on this system"
-        zerr }
+    error "$i is required, but is not found on this system"
+    zerr }
 done
 
 if [[ -r /usr/lib/syslinux/isohdpfx.bin ]]; then
@@ -129,12 +130,10 @@ else
     zerr
 fi
 
-TRAPZERR() { }
-
-notice "Baking $SUITE $ARCH using $INST from $REPO"
+notice "Baking ${SUITE}_${VERSION}_${ARCH} using $INST from $REPO"
 
 # create the iso output directory
-out=$R/packer/iso/$SUITE-$ARCH-$INST
+out=$R/packer/iso/$SUITE_$ARCH_$INST
 mkdir -p $out
 rm -f $out/SHA256SUMS
 sha256sums=$REPO/$SUITE/main/installer-$ARCH/current/images/SHA256SUMS
@@ -163,11 +162,9 @@ else
 fi
 popd
 
-# Save the mini.iso as the final iso installer
-iso_path=$out/mini.iso
-mkdir -p $R/pub/
-cp $iso_path $R/pub/devuan-${SUITE}-${ARCH}-${VERSION}-netboot.iso
-
+# rename the mini.iso into the final iso installer filename
+iso_path=$out/devuan_${SUITE}_${VERSION}_${ARCH}_netboot.iso
+mv $out/mini.iso $iso_path
 
 
 # preseed
@@ -185,8 +182,8 @@ done
 preseed=$ztmpfile
 
 # loop mount
-tmploop=$R/packer/packer_cache/$vm_output.loop
-newiso=$R/packer/packer_cache/$vm_output.new
+tmploop=$R/packer/packer_cache/${vm_output}.loop
+newiso=$R/packer/packer_cache/${vm_output}.new
 mkdir -p $tmploop
 act "performing loop mount the iso (root required)"
 sudo mount -o loop $iso_path $tmploop
@@ -219,13 +216,13 @@ done
 # md5sum `find -follow -type f` > md5sum.txt
 
 act "Toasting the new iso"
-iso_ready=$R/packer/packer_cache/$vm_output-$INST-auto.iso
+iso_ready=$R/packer/packer_cache/${vm_output}_${INST}_auto.iso
 xorriso -as mkisofs -output $iso_ready \
-        -iso-level 3 -full-iso9660-filenames -r \
-        -J -no-emul-boot -boot-load-size 4 \
-        -isohybrid-mbr $isohdpfx -partition_offset 16 \
-        -boot-info-table -b isolinux.bin -c boot.cat \
-        $newiso
+    -iso-level 3 -full-iso9660-filenames -r \
+    -J -no-emul-boot -boot-load-size 4 \
+    -isohybrid-mbr $isohdpfx -partition_offset 16 \
+    -boot-info-table -b isolinux.bin -c boot.cat \
+    $newiso
 sha1_ready=`sha1sum $iso_ready`
 sha1_ready=${sha1_ready[(w)1]}
 
@@ -265,7 +262,7 @@ case $target in
             "ssh_password": "devuan",
             "ssh_port": 22,
             "ssh_wait_timeout": "90m",
-            "vm_name": "devuan-$SUITE-$ARCH-$VERSION",
+            "vm_name": "devuan_${SUITE}_${VERSION}_${ARCH}",
             "net_device": "virtio-net",
             "disk_interface": "virtio",
             "boot_command": "<enter>"
@@ -291,7 +288,7 @@ EOF
             "ssh_password": "devuan",
             "ssh_port": 22,
             "ssh_wait_timeout": "90m",
-            "vm_name": "devuan-$SUITE-$ARCH-$VERSION",
+            "vm_name": "devuan_${SUITE}_${VERSION}_${ARCH}",
             "boot_command": "<enter>"
         }
 EOF
@@ -348,7 +345,7 @@ cat <<EOF >> $packer_target
         {
             "type": "vagrant",
             "only": ["virtualbox-iso"],
-            "output": "$R/pub/devuan-$SUITE-$ARCH-$VERSION.box",
+            "output": "$R/pub/devuan_${SUITE}_${VERSION}_${ARCH}.box",
             "vagrantfile_template": "$vagrant_template"
         }
     ]
@@ -368,6 +365,6 @@ post-packer
 [[ $DEBUG = 1 ]] || {
     act "cleaning up"
     rm -rf $dest
-    act "publishing $INST-auto installer ISO"
+    act "publishing ${INST}_auto installer ISO"
     mv $iso_ready $R/pub/
 }
