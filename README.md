@@ -79,7 +79,6 @@ sdk-init
 ```
 
 from inside the sdk environment is possible to tab-complete available public commands using `sdk-[tab]`.
-```
 
 ## Chroot build
 
